@@ -14,32 +14,63 @@ clock = pygame.time.Clock()
 #Абстрактный класс всего что позволяет отрисовать pygame
 class Primitive:
     def __init__(self, name, x, y):
+        memory.append(self)
         self.name = name
         self.x = x
         self.y = y
+
+    #Красиво упакованные данные для функции pygame'a для прорисовки
+    def drawing_data(self):
+        return [self.img[str(self.vector)], (self.x, self.y)]
 
     def __repr__(self):
         return f"#{self.name}"
 
 
-#Персонажи
+class Weapon(Primitive):
+    coordinates = [(81, 8), (38, 48), (-8, 81), (-25, 35), (-5, 8), (-5, -27), (8, -5), (45, -15)]
+    def __init__(self, name, img, damage=10, speed=FPS, x=0, y=0, vector=1, master=None):
+        super().__init__(name, x, y)
+        self.damage = damage
+        self.speed = speed
+        self.master = master
+        self.vector = vector
+        self.__coordinates = {}
+        for i in range(1, 9):
+            self.__coordinates[str(i)] = [img[str(i)], Weapon.coordinates[i-1]]
+        self.img = self.__class__.img
+
+    def update_coordinates(self):
+        if self.master is not None:
+            self.vector = self.master.vector
+            self.x = self.master.x + self.__coordinates[str(self.vector)][1][0]
+            self.y = self.master.y + self.__coordinates[str(self.vector)][1][1]
+
+
+class Katana(Weapon):
+    img = katana_image
+    def __init__(self, name, damage=10, speed=FPS, x=0, y=0, vector=1, master=None):
+        super().__init__(name, katana_image, damage, speed, x, y, vector, master)
+
+
+#Персонажи как класс
 class Hunter(Primitive):
-    def __init__(self, name, x, y, vector=1):
+    def __init__(self, name, x, y, health=100, vector=1):
+        self.img = cricle_image
+        self.health = health
         self.__speed = 5
         super().__init__(name, x, y)
         self.__size = 81
         self.vector = vector
+        self.action = "calmness"
         self.movement = {
             "left": [False, random_pole()],
             "right": [False, random_pole()],
             "up": [False, random_pole()],
             "down": [False, random_pole()]
         }
-        memory.append(self)
+        self.weapon = Katana("Sasai-kudasai", master=self)
 
-    #Красиво упакованные данные для функции pygame'a для прорисовки
-    def drawing_data(self):
-        return [cricle_image[str(self.vector)], (self.x, self.y)]
 
     @property
     def speed(self): return self.__speed
@@ -48,6 +79,8 @@ class Hunter(Primitive):
 
 #Сущность которой мы можем управлять
 Hero = Hunter("Arthur", 200, 200)
+
+print(memory)
 
 #Главный цикл
 world_is_life = True
@@ -59,6 +92,7 @@ while world_is_life:
             world_is_life = False
 
         if action.type == pygame.KEYDOWN:
+            #if action.key == pygame.K_SPACE: Hero.action = "attack"
             if action.key == pygame.K_LEFT: Hero.movement["left"] = [True, random_pole()]
             if action.key == pygame.K_RIGHT: Hero.movement["right"] = [True, random_pole()]
             if action.key == pygame.K_UP: Hero.movement["up"] = [True, random_pole()]
@@ -143,11 +177,18 @@ while world_is_life:
         Hero.vector = 1
 
 
+    #if Hero.action == "attack" and Hero.weapon is not None:
+    #    Hero.weapon.img = attack_image
+
+
     #Рисуем
     app.blit(fone_image["one"], (0, 0))
 
     #Прорисовываем все обьекты в хранилище
     for item in memory:
+        if item.__class__ == Katana:
+            item.update_coordinates()
+
         app.blit(*item.drawing_data())
 
     pygame.display.update()

@@ -19,11 +19,19 @@ def get_image(way):
         return image_list
 
 
-#Загружаем материалы
-cricle_image = get_image("cricle")
-fone_image = get_image("fone")
 icon = pygame.image.load("material/icon.ico")
 
+#Загружаем папку fone
+fone_image = get_image("fone")
+
+#Загружаем папку effects
+attack_image = get_image("effects/attack")
+
+#Загружаем папку weapon
+katana_image = get_image("weapon/katana")
+
+#Загружаем папку person
+cricle_image = get_image("person/cricle")
 
 #Возврощает рандомный знак
 def random_pole():
