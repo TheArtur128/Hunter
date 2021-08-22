@@ -31,25 +31,34 @@ class Weapon(Primitive):
     coordinates = [(81, 8), (38, 48), (-8, 81), (-25, 35), (-5, 8), (-5, -27), (8, -5), (45, -15)]
     def __init__(self, name, img, damage=10, speed=FPS, x=0, y=0, vector=1, master=None):
         super().__init__(name, x, y)
+        #Атрибуты описывающие оружие непосредственно
         self.damage = damage
         self.speed = speed
+        #Ссылка на персонажа держущего оружие
         self.master = master
+        #Атрибуты действия
+        self.action = [0, 0, 0]
+        #Положение
         self.vector = vector
+        #Штраф при расположении под углом
         self.__coordinates = {}
         for i in range(1, 9):
             self.__coordinates[str(i)] = [img[str(i)], Weapon.coordinates[i-1]]
+        #Графическая чать оружия
         self.img = self.__class__.img
 
     def update_coordinates(self):
         if self.master is not None:
-            self.vector = self.master.vector
+            self.vector = self.master.vector + self.action[1]
+            self.vector = check_vector(self.vector)
             self.x = self.master.x + self.__coordinates[str(self.vector)][1][0]
             self.y = self.master.y + self.__coordinates[str(self.vector)][1][1]
 
 
 class Katana(Weapon):
     img = katana_image
-    def __init__(self, name, damage=10, speed=FPS, x=0, y=0, vector=1, master=None):
+    speed = FPS // 15
+    def __init__(self, name, damage=10, speed=speed, x=0, y=0, vector=1, master=None):
         super().__init__(name, katana_image, damage, speed, x, y, vector, master)
 
 
@@ -71,7 +80,6 @@ class Hunter(Primitive):
         }
         self.weapon = Katana("Sasai-kudasai", master=self)
 
-
     @property
     def speed(self): return self.__speed
     @property
@@ -91,18 +99,26 @@ while world_is_life:
         if action.type == pygame.QUIT:
             world_is_life = False
 
+        if action.type == pygame.MOUSEBUTTONDOWN:
+            if action.button == 1:
+                if Hero.action != "attack":
+                    Hero.action = "attack"
+
         if action.type == pygame.KEYDOWN:
-            #if action.key == pygame.K_SPACE: Hero.action = "attack"
-            if action.key == pygame.K_LEFT: Hero.movement["left"] = [True, random_pole()]
-            if action.key == pygame.K_RIGHT: Hero.movement["right"] = [True, random_pole()]
-            if action.key == pygame.K_UP: Hero.movement["up"] = [True, random_pole()]
-            if action.key == pygame.K_DOWN: Hero.movement["down"] = [True, random_pole()]
+            if action.key == pygame.K_z:
+                if Hero.action != "attack":
+                    Hero.action = "attack"
+
+            if action.key in key["LEFT"]: Hero.movement["left"] = [True, random_pole()]
+            if action.key in key["RIGHT"]: Hero.movement["right"] = [True, random_pole()]
+            if action.key in key["UP"]: Hero.movement["up"] = [True, random_pole()]
+            if action.key in key["DOWN"]: Hero.movement["down"] = [True, random_pole()]
 
         if action.type == pygame.KEYUP:
-            if action.key == pygame.K_LEFT: Hero.movement["left"] = [False, random_pole()]
-            if action.key == pygame.K_RIGHT: Hero.movement["right"] = [False, random_pole()]
-            if action.key == pygame.K_UP: Hero.movement["up"] = [False, random_pole()]
-            if action.key == pygame.K_DOWN: Hero.movement["down"] = [False, random_pole()]
+            if action.key in key["LEFT"]: Hero.movement["left"] = [False, random_pole()]
+            if action.key in key["RIGHT"]: Hero.movement["right"] = [False, random_pole()]
+            if action.key in key["UP"]: Hero.movement["up"] = [False, random_pole()]
+            if action.key in key["DOWN"]: Hero.movement["down"] = [False, random_pole()]
 
 
     #Если были нажаты две смежные кнопки то ставим нужный вектор и запрещаем его изминять
@@ -145,7 +161,6 @@ while world_is_life:
             elif Hero.vector in [8, 1, 2]:
                 Hero.vector += 1
 
-
     #Изминение y координаты
     if Hero.movement["up"][0]:
         if Hero.y > 0:
@@ -170,25 +185,31 @@ while world_is_life:
                 Hero.vector -= 1
 
 
-    #Перебрасываем вектор если перешли границу
-    if Hero.vector < 1:
-        Hero.vector = 8
-    elif Hero.vector > 8:
-        Hero.vector = 1
+    #Выполняем атаку
+    if Hero.action == "attack" and Hero.weapon is not None:
+        Hero.weapon.action[0] -= 1
+        if Hero.weapon.action[0] <= 0:
+            Hero.weapon.action[0] = Hero.weapon.__class__.speed
+            Hero.weapon.action[1] -= 1
+            Hero.weapon.action[2] += 1
+            if Hero.weapon.action[2] > 3:
+                Hero.weapon.action = [0, 0, 0]
+                Hero.action = "calmness"
 
-
-    #if Hero.action == "attack" and Hero.weapon is not None:
-    #    Hero.weapon.img = attack_image
-
+    #Переброска вектора и данных дублирующих его
+    Hero.vector = check_vector(Hero.vector)
+    Hero.weapon.vector = check_vector(Hero.weapon.vector)
 
     #Рисуем
     app.blit(fone_image["one"], (0, 0))
 
-    #Прорисовываем все обьекты в хранилище
+    #Работа с хранилищем
     for item in memory:
+        #Проверки для нужных обьектах
         if item.__class__ == Katana:
             item.update_coordinates()
 
+        #Прорисовываем все обьекты в хранилище
         app.blit(*item.drawing_data())
 
     pygame.display.update()
