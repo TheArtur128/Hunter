@@ -5,6 +5,10 @@ import os
 import json
 from win32api import GetSystemMetrics as win
 
+pygame.init()
+
+folder_root = os.path.dirname(os.path.abspath(__file__))
+
 #Группы кнопок которые в контесте приводят к одному результату
 key = {
     "LEFT": [pygame.K_LEFT, pygame.K_a],
@@ -15,7 +19,7 @@ key = {
 
 #Парсим все картинки из папки в словарь под их имена
 def get_image(way):
-    way = "material/graphix/" + way
+    way = f"{folder_root}/material/graphix/" + way
     with os.scandir(way) as listOfEntries:
         image_list = {}
         for entry in listOfEntries:
@@ -26,20 +30,29 @@ def get_image(way):
         return image_list
 
 
-icon = pygame.image.load("material/icon.ico")
+icon = pygame.image.load(f"{folder_root}/material/icon.ico")
+#pygame.mixer.music.load(f"{folder_root}/material/sound/Steel-arms-voiced.ogg")
+
+#Вытаскиваем звук из каталога. #TO DO
+with open(f"{folder_root}/material/sound/Steel-arms-voiced.ogg", "rb") as file:
+    light_hitting_sound = pygame.mixer.Sound(file.read())
+
+#light_hitting_sound = pygame.mixer.Sound(f"{folder_root}/material/sound/Steel-arms-voiced.ogg")
 
 #Загружаем папку fone
 fone_image = get_image("fone")
 
 #Загружаем папку effects
-attack_image = get_image("effects/attack")
+attack_image = get_image(f"effects/attack")
 
 #Загружаем папку weapon
-katana_image = get_image("weapon/katana")
+katana_image = get_image(f"weapon/katana")
 
 #Загружаем папку person
-cricle_image = get_image("person/cricle")
+cricle_image = get_image(f"person/cricle")
 
+#Загружаем звуки
+#soundtrack = pg.mixer.music.load('Beethoven.ogg')
 
 #Возврощает рандомный знак
 def random_pole():
@@ -61,7 +74,7 @@ def check_vector(arg):
 theme = "dark"
 
 #Получаем цвета из заданной темы
-with open(f"theme\{theme}-theme.json", "r") as file:
+with open(f"{folder_root}/theme/{theme}-theme.json", "r") as file:
     color = json.loads(file.read())["color"]
 
 #Глобальные состояния
