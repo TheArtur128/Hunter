@@ -187,7 +187,7 @@ class Opponent(Hunter):
 app = pygame.display.set_mode(window_dimensions)
 pygame.display.set_icon(icon)
 pygame.display.set_caption("Lonely Hunter")
-#pygame.mixer.music.play(loops=-1)
+pygame.mixer.music.play(loops=-1)
 clock = pygame.time.Clock()
 
 #Сущность которой мы можем управлять

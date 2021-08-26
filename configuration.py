@@ -31,7 +31,7 @@ def get_image(way):
 
 
 #Загружаем глобальные файлы
-#soundtrack = pygame.mixer.music.load(f"{folder_root}/material/general/soundtracks/0.mp3")
+soundtrack = pygame.mixer.music.load(f"{folder_root}/material/general/soundtracks/0.mp3")
 icon = pygame.image.load(f"{folder_root}\material\general\graphix\icon.ico")
 
 #Загружаем статические, потонциально не дивжимые обьекты
