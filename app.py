@@ -1,23 +1,17 @@
 from configuration import *
 
-pygame.init()
-
 #Хранилище всех сущностей для будущего отрисосвывания
 memory = []
 
-#Создаём прлиложение
-app = pygame.display.set_mode(window_dimensions)
-pygame.display.set_icon(icon)
-pygame.display.set_caption("Lonely Hunter")
-clock = pygame.time.Clock()
-
 #Абстрактный класс всего что позволяет отрисовать pygame
 class Primitive:
-    def __init__(self, name, x, y):
+    def __init__(self, name, x, y, vector=1):
         memory.append(self)
         self.name = name
         self.x = x
         self.y = y
+        self.vector = vector
+        self.img = self.__class__.img
 
     #Красиво упакованные данные для функции pygame'a для прорисовки
     def drawing_data(self):
@@ -27,9 +21,10 @@ class Primitive:
         return f"#{self.name}"
 
 
+#Абстрактный класс всех оружий
 class Weapon(Primitive):
-    def __init__(self, name, img, damage=10, speed=FPS, x=0, y=0, vector=1, master=None):
-        super().__init__(name, x, y)
+    def __init__(self, name, damage=10, speed=FPS, x=0, y=0, vector=1, master=None):
+        super().__init__(name, x, y, vector)
         #Атрибуты описывающие оружие непосредственно
         self.damage = damage
         self.speed = speed
@@ -37,12 +32,8 @@ class Weapon(Primitive):
         self.master = master
         #Атрибуты действия
         self.action = [self.__class__.speed, 0, 0]
-        #Положение
-        self.vector = vector
         #Штраф при расположении под углом
         self.coordinates = self.default_coordinates()
-        #Графическая чать оружия
-        self.img = self.__class__.img
 
     def __update_coordinates(self):
         if self.master is not None:
@@ -62,24 +53,21 @@ class Weapon(Primitive):
 
 
 class Katana(Weapon):
-    img = katana_image
-    #TO DO...
-    with open(f"{folder_root}/material/sound/Steel-arms-voiced.ogg", "rb") as file:
-        light_hitting_sound = pygame.mixer.Sound(file.read())
+    img = get_image(f"weapon/katana/graphix")
+    waft = pygame.mixer.Sound(f"{folder_root}/material/weapon/katana/sound/waft-weapon.ogg")
     speed = FPS // 10
     def __init__(self, name="katana", damage=10, speed=speed, x=0, y=0, vector=1, master=None):
-        super().__init__(name, katana_image, damage, speed, x, y, vector, master)
+        super().__init__(name, damage, speed, x, y, vector, master)
 
 
 #Персонажи как класс
 class Hunter(Primitive):
+    img = get_image(f"person/cricle")
     def __init__(self, name, x, y, health=100, vector=1):
-        self.img = cricle_image
+        super().__init__(name, x, y, vector)
         self.health = health
-        self.__speed = 5
-        super().__init__(name, x, y)
+        self.speed = 7
         self.__size = 81
-        self.vector = vector
         self.action = "calmness"
         self.movement = {
             "left": [False, random_pole()],
@@ -96,14 +84,15 @@ class Hunter(Primitive):
             if self.weapon.action[0] <= 0:
                 #При первой итерации удара включаем звук удара
                 if self.weapon.action[2] == 0:
-                    self.weapon.__class__.light_hitting_sound.play()
+                    #self.weapon.__class__.waft.play()
+                    pass
                 self.weapon.action[0] = self.weapon.__class__.speed #Обновляем счётчик до следуещего удара
                 self.weapon.action[1] -= 1 #перемещаем оружие
                 self.weapon.action[2] += 1 #Устанавливаем точное кол. итераций
 
                 #Завершаем удар
                 if self.weapon.action[2] > 3:
-                    self.weapon.__class__.light_hitting_sound.stop()
+                    #self.weapon.__class__.waft.stop()
                     #Ставим атрибуты на свои места
                     self.weapon.action[1] = 0
                     self.weapon.action[2] = 0
@@ -184,33 +173,44 @@ class Hunter(Primitive):
         self.vector = check_vector(self.vector)
 
     @property
-    def speed(self): return self.__speed
-    @property
     def size(self): return self.__size
 
+
+class Opponent(Hunter):
+    img = get_image(f"person/red-circle")
+    def verification(self):
+        self.action = "attack"
+        super().verification()
+
+
+#Создаём прлиложение
+app = pygame.display.set_mode(window_dimensions)
+pygame.display.set_icon(icon)
+pygame.display.set_caption("Lonely Hunter")
+#pygame.mixer.music.play(loops=-1)
+clock = pygame.time.Clock()
+
 #Сущность которой мы можем управлять
-Hero = Hunter("Arthur", 200, 200)
+Hero = Hunter("Main Hero", 200, 200)
+Amongus = Opponent("Red Hunter", 500, 300)
 
 print(memory)
 
 #Главный цикл
-world_is_life = True
-while world_is_life:
+while game and __name__ == '__main__':
     clock.tick(FPS)
 
     for action in pygame.event.get():
         if action.type == pygame.QUIT:
-            world_is_life = False
+            game = False
 
         if action.type == pygame.MOUSEBUTTONDOWN:
             if action.button == 1:
-                if Hero.action != "attack":
-                    Hero.action = "attack"
+                Hero.action = "attack"
 
         if action.type == pygame.KEYDOWN:
             if action.key == pygame.K_z:
-                if Hero.action != "attack":
-                    Hero.action = "attack"
+                Hero.action = "attack"
 
             if action.key in key["LEFT"]: Hero.movement["left"] = [True, random_pole()]
             if action.key in key["RIGHT"]: Hero.movement["right"] = [True, random_pole()]
@@ -223,8 +223,8 @@ while world_is_life:
             if action.key in key["UP"]: Hero.movement["up"] = [False, random_pole()]
             if action.key in key["DOWN"]: Hero.movement["down"] = [False, random_pole()]
 
-    #Рисуем
-    app.blit(fone_image["one"], (0, 0))
+
+    app.blit(statics_image["glade"], (0, 0))
 
     #Работа с хранилищем
     for item in memory:

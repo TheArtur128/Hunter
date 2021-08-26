@@ -19,7 +19,7 @@ key = {
 
 #Парсим все картинки из папки в словарь под их имена
 def get_image(way):
-    way = f"{folder_root}/material/graphix/" + way
+    way = f"{folder_root}/material/" + way
     with os.scandir(way) as listOfEntries:
         image_list = {}
         for entry in listOfEntries:
@@ -30,29 +30,13 @@ def get_image(way):
         return image_list
 
 
-icon = pygame.image.load(f"{folder_root}/material/icon.ico")
-#pygame.mixer.music.load(f"{folder_root}/material/sound/Steel-arms-voiced.ogg")
+#Загружаем глобальные файлы
+#soundtrack = pygame.mixer.music.load(f"{folder_root}/material/general/soundtracks/0.mp3")
+icon = pygame.image.load(f"{folder_root}\material\general\graphix\icon.ico")
 
-#Вытаскиваем звук из каталога. #TO DO
-with open(f"{folder_root}/material/sound/Steel-arms-voiced.ogg", "rb") as file:
-    light_hitting_sound = pygame.mixer.Sound(file.read())
+#Загружаем статические, потонциально не дивжимые обьекты
+statics_image = get_image("statics")
 
-#light_hitting_sound = pygame.mixer.Sound(f"{folder_root}/material/sound/Steel-arms-voiced.ogg")
-
-#Загружаем папку fone
-fone_image = get_image("fone")
-
-#Загружаем папку effects
-attack_image = get_image(f"effects/attack")
-
-#Загружаем папку weapon
-katana_image = get_image(f"weapon/katana")
-
-#Загружаем папку person
-cricle_image = get_image(f"person/cricle")
-
-#Загружаем звуки
-#soundtrack = pg.mixer.music.load('Beethoven.ogg')
 
 #Возврощает рандомный знак
 def random_pole():
@@ -78,6 +62,7 @@ with open(f"{folder_root}/theme/{theme}-theme.json", "r") as file:
     color = json.loads(file.read())["color"]
 
 #Глобальные состояния
+game = True
 time = True
 
 #Константы и системная информация
