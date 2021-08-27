@@ -59,53 +59,49 @@ class Katana(Weapon):
     def __init__(self, name="katana", damage=10, speed=speed, x=0, y=0, vector=1, master=None):
         super().__init__(name, damage, speed, x, y, vector, master)
 
-
 #Персонажи как класс
 class Hunter(Primitive):
     img = get_image(f"person/cricle")
-    def __init__(self, name, x, y, health=100, vector=1):
+    def __init__(self, name, x, y, health=100, vector=1, weapon=Katana):
         super().__init__(name, x, y, vector)
         self.health = health
         self.speed = 7
         self.__size = 81
-        self.action = "calmness"
+        self.action = "quiet"
         self.movement = {
             "left": [False, random_pole()],
             "right": [False, random_pole()],
             "up": [False, random_pole()],
             "down": [False, random_pole()]
         }
-        self.weapon = Katana(master=self)
+        self.weapon = weapon(master=self)
 
     def __attack(self):
-        if self.weapon is not None:
-            #Уменьшаем счётчик до момента удара
-            self.weapon.action[0] -= 1
-            if self.weapon.action[0] <= 0:
-                #При первой итерации удара включаем звук удара
-                if self.weapon.action[2] == 0:
-                    #self.weapon.__class__.waft.play()
-                    pass
-                self.weapon.action[0] = self.weapon.__class__.speed #Обновляем счётчик до следуещего удара
-                self.weapon.action[1] -= 1 #перемещаем оружие
-                self.weapon.action[2] += 1 #Устанавливаем точное кол. итераций
+        #Уменьшаем счётчик до момента удара
+        self.weapon.action[0] -= 1
+        if self.weapon.action[0] <= 0:
+            #При первой итерации удара включаем звук удара
+            if self.weapon.action[2] == 0:
+                #self.weapon.__class__.waft.play()
+                pass
+            self.weapon.action[0] = self.weapon.__class__.speed #Обновляем счётчик до следуещего удара
+            self.weapon.action[1] -= 1 #перемещаем оружие
+            self.weapon.action[2] += 1 #Устанавливаем точное кол. итераций
 
-                #Завершаем удар
-                if self.weapon.action[2] > 3:
-                    #self.weapon.__class__.waft.stop()
-                    #Ставим атрибуты на свои места
-                    self.weapon.action[1] = 0
-                    self.weapon.action[2] = 0
-                    self.weapon.coordinates = self.weapon.default_coordinates()
-                    #Убираем состояние атаки и также убираем вызов метода
-                    self.action = "calmness"
+            #Завершаем удар
+            if self.weapon.action[2] > 3:
+                #self.weapon.__class__.waft.stop()
+                self.action = "quiet"
+                #Ставим атрибуты на свои места
+                self.weapon.action[1] = 0
+                self.weapon.action[2] = 0
+                self.weapon.coordinates = self.weapon.default_coordinates()
 
         self.weapon.vector = check_vector(self.weapon.vector)
 
     def verification(self):
         #Вызываем функию состояния
-        if self.action == "attack":
-            self.__attack()
+        if self.action == "attack": self.__attack()
 
         #Движение
         #Если были нажаты две смежные кнопки
@@ -172,6 +168,12 @@ class Hunter(Primitive):
 
         self.vector = check_vector(self.vector)
 
+        #Подгоняем хитбокс под новые координаты
+        self.hitbox = []
+        for i in range(360):
+            vec = pygame.math.Vector2(0, -40).rotate(i)
+            self.hitbox.append([int(self.x+self.size//2+vec.x), int(self.y+self.size//2+vec.y)])
+
     @property
     def size(self): return self.__size
 
@@ -209,7 +211,7 @@ while game and __name__ == '__main__':
                 Hero.action = "attack"
 
         if action.type == pygame.KEYDOWN:
-            if action.key == pygame.K_z:
+            if action.key == pygame.K_x:
                 Hero.action = "attack"
 
             if action.key in key["LEFT"]: Hero.movement["left"] = [True, random_pole()]
@@ -230,5 +232,8 @@ while game and __name__ == '__main__':
     for item in memory:
         item.verification() #Для каждого обьекта проводим его личную проверку
         app.blit(*item.drawing_data()) #Рисуем обькт из упакованных данных
+        if item.__class__ in (Hunter, Opponent):
+            for hitbox in item.hitbox:
+                pygame.draw.rect(app, (255, 0, 0), (hitbox[0], hitbox[1], 1, 1))
 
     pygame.display.update()
