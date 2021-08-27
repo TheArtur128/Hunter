@@ -59,9 +59,10 @@ class Katana(Weapon):
     def __init__(self, name="katana", damage=10, speed=speed, x=0, y=0, vector=1, master=None):
         super().__init__(name, damage, speed, x, y, vector, master)
 
+
 #Персонажи как класс
 class Hunter(Primitive):
-    img = get_image(f"person/cricle")
+    img = get_image(f"person/red-circle")
     def __init__(self, name, x, y, health=100, vector=1, weapon=Katana):
         super().__init__(name, x, y, vector)
         self.health = health
@@ -133,7 +134,7 @@ class Hunter(Primitive):
                     self.vector += 1
 
         elif self.movement["right"][0]:
-            if self.x + self.size < window_dimensions[0]:
+            if self.x + self.size < app_win[0]:
                 self.x += self.speed
             if not vector_ban:
                 if self.vector == 7:
@@ -156,7 +157,7 @@ class Hunter(Primitive):
                     self.vector += 1
 
         elif self.movement["down"][0]:
-            if self.y + self.size < window_dimensions[1]:
+            if self.y + self.size < app_win[1]:
                 self.y += self.speed
             if not vector_ban:
                 if self.vector == 1:
@@ -178,6 +179,48 @@ class Hunter(Primitive):
     def size(self): return self.__size
 
 
+class Player(Hunter):
+    img = get_image(f"person/blue-circle")
+    def verification(self):
+        super().verification()
+
+        '''Все блоки if-else работают только с разными значениями и их исходом.
+        Но схема работы такова что после пересекания границы все обькты в "памяти"
+        перемещаються в указонной координаты равной скорости персонажа, создовая
+        эффект перемещенния игрока и камеры, и перемещая координату игрока на
+        координату границы'''
+        
+        #Работаем с x координатой
+        if self.x + self.size > app_win[0]-tithe_win[0]:
+            for item in memory:
+                if item == self:
+                    self.x = app_win[0]-tithe_win[0] - self.size
+                else:
+                    item.x -= self.speed
+        elif self.x < tithe_win[0]:
+            for item in memory:
+                if item == self:
+                    self.x = tithe_win[0]
+                else:
+                    item.x += self.speed
+
+        #Работаем с y координатой
+        if self.y < tithe_win[1]:
+            for item in memory:
+                if item == self:
+                    self.y = tithe_win[1]
+                else:
+                    item.y += self.speed
+
+        elif self.y > app_win[1] - tithe_win[1] - self.size:
+            for item in memory:
+                if item == self:
+                    self.y = app_win[1] - tithe_win[1] - self.size
+                else:
+                    item.y -= self.speed
+
+
+#Тестовый микрочелик отличающийся от своего предка только постоянными атаками
 class Opponent(Hunter):
     img = get_image(f"person/red-circle")
     def verification(self):
@@ -186,14 +229,16 @@ class Opponent(Hunter):
 
 
 #Создаём прлиложение
-app = pygame.display.set_mode(window_dimensions)
+app = pygame.display.set_mode(app_win)
 pygame.display.set_icon(icon)
 pygame.display.set_caption("Lonely Hunter")
 pygame.mixer.music.play(loops=-1)
+pygame.mixer.music.set_volume(0.08)
 clock = pygame.time.Clock()
 
 #Сущность которой мы можем управлять
-Hero = Hunter("Main Hero", 200, 200)
+Hero = Player("Main Hero", 200, 200)
+#Тестовая сущность
 Amongus = Opponent("Red Hunter", 500, 300)
 
 print(memory)
@@ -232,7 +277,7 @@ while game and __name__ == '__main__':
     for item in memory:
         item.verification() #Для каждого обьекта проводим его личную проверку
         app.blit(*item.drawing_data()) #Рисуем обькт из упакованных данных
-        if item.__class__ in (Hunter, Opponent):
+        if item.__class__ in Hunter.__subclasses__():
             for hitbox in item.hitbox:
                 pygame.draw.rect(app, (255, 0, 0), (hitbox[0], hitbox[1], 1, 1))
 

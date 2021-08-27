@@ -4,7 +4,7 @@ from random import randint as random
 import os
 import json
 import math
-from win32api import GetSystemMetrics as win
+#from win32api import GetSystemMetrics as win
 
 pygame.init()
 
@@ -69,4 +69,5 @@ time = True
 #Константы и системная информация
 FPS = 30
 
-window_dimensions = (600, 400)
+app_win = (600, 400)
+tithe_win = [app_win[0]//10, app_win[1]//10]
