@@ -8,6 +8,7 @@ class Primitive:
     def __init__(self, name, x, y, vector=1):
         memory.append(self)
         self.name = name
+        if debug_mode: print(f"{self} initialized")
         self.x = x
         self.y = y
         self.vector = vector
@@ -18,15 +19,21 @@ class Primitive:
         return [self.img[str(self.vector)], (self.x, self.y)]
 
     def __repr__(self):
-        return f"#{self.name}"
+        return f"<{self.name}>"
+
+    def dying(self):
+        if debug_mode: print(f"{self} died")
+        self.__dict__ = {}
+        memory.remove(self)
 
 
 #Абстрактный класс всех оружий
 class Weapon(Primitive):
-    def __init__(self, name, damage=10, speed=FPS, x=0, y=0, vector=1, master=None):
+    def __init__(self, name, damage=10, strength=5, speed=FPS, x=0, y=0, vector=1, master=None):
         super().__init__(name, x, y, vector)
         #Атрибуты описывающие оружие непосредственно
         self.damage = damage
+        self.strength = strength
         self.speed = speed
         #Ссылка на персонажа держущего оружие
         self.master = master
@@ -42,6 +49,13 @@ class Weapon(Primitive):
             self.x = self.master.x + self.coordinates[self.vector-1][0]
             self.y = self.master.y + self.coordinates[self.vector-1][1]
 
+        if self.strength <= 0:
+            self.dying()
+
+    def dying(self):
+        self.master.weapon = None
+        super().dying()
+
     @staticmethod
     def default_coordinates():
         '''Штраф распоожения для векторов. Первый индекс штрафа
@@ -56,8 +70,8 @@ class Katana(Weapon):
     img = get_image(f"weapon/katana/graphix")
     waft = pygame.mixer.Sound(f"{folder_root}/material/weapon/katana/sound/waft-weapon.ogg")
     speed = FPS // 10
-    def __init__(self, name="katana", damage=10, speed=speed, x=0, y=0, vector=1, master=None):
-        super().__init__(name, damage, speed, x, y, vector, master)
+    def __init__(self, name="katana", strength=10, damage=10, speed=speed, x=0, y=0, vector=1, master=None):
+        super().__init__(name, damage=damage, strength=strength, speed=speed, x=x, y=y, vector=vector, master=master)
 
 
 #Персонажи как класс
@@ -78,33 +92,36 @@ class Hunter(Primitive):
         self.weapon = weapon(master=self)
 
     def __attack(self):
-        #Уменьшаем счётчик до момента удара
-        self.weapon.action[0] -= 1
-        if self.weapon.action[0] <= 0:
-            #При первой итерации удара включаем звук удара
-            if self.weapon.action[2] == 0:
-                #self.weapon.__class__.waft.play()
-                pass
-            self.weapon.action[0] = self.weapon.__class__.speed #Обновляем счётчик до следуещего удара
-            self.weapon.action[1] -= 1 #перемещаем оружие
-            self.weapon.action[2] += 1 #Устанавливаем точное кол. итераций
+        if self.weapon is not None:
+            #Уменьшаем счётчик до момента удара
+            self.weapon.action[0] -= 1
+            if self.weapon.action[0] <= 0:
+                self.weapon.action[0] = self.weapon.__class__.speed #Обновляем счётчик до следуещего удара
+                self.weapon.action[1] -= 1 #перемещаем оружие
+                self.weapon.action[2] += 1 #Устанавливаем точное кол. итераций
 
-            #Завершаем удар
-            if self.weapon.action[2] > 3:
-                #self.weapon.__class__.waft.stop()
-                self.action = "quiet"
-                #Ставим атрибуты на свои места
-                self.weapon.action[1] = 0
-                self.weapon.action[2] = 0
-                self.weapon.coordinates = self.weapon.default_coordinates()
+                if self.weapon.action[2] == 2:
+                    for item in memory:
+                        if item.__class__ in Hunter.__subclasses__() or item.__class__ == Hunter and item != self:
+                            if self.x < item.x:
+                                item.health -= self.weapon.damage
+                                self.weapon.strength -= 1
+                                if debug_mode:
+                                    print(f"{self} hit {item}! {item} have {item.health} hp")
 
-        self.weapon.vector = check_vector(self.weapon.vector)
+                #Завершаем удар
+                if self.weapon.action[2] >= 4:
+                    self.action = "quiet"
+                    #Ставим атрибуты на свои места
+                    self.weapon.action[1] = 0
+                    self.weapon.action[2] = 0
+                    self.weapon.coordinates = self.weapon.default_coordinates()
 
-    def verification(self):
-        #Вызываем функию состояния
-        if self.action == "attack": self.__attack()
+            self.weapon.vector = check_vector(self.weapon.vector)
+        else:
+            self.action = "quiet"
 
-        #Движение
+    def check_motion(self):
         #Если были нажаты две смежные кнопки
         if self.movement["left"][0] and self.movement["up"][0]:
             self.vector = 8
@@ -169,11 +186,25 @@ class Hunter(Primitive):
 
         self.vector = check_vector(self.vector)
 
+    def verification(self):
+        #Вызываем функию состояния
+        if self.action == "attack": self.__attack()
+
+        if self.__class__ == Hunter: self.check_motion()
+
         #Подгоняем хитбокс под новые координаты
         self.hitbox = []
         for i in range(360):
             vec = pygame.math.Vector2(0, -40).rotate(i)
             self.hitbox.append([int(self.x+self.size//2+vec.x), int(self.y+self.size//2+vec.y)])
+
+        if self.health <= 0:
+            self.dying()
+
+    def dying(self):
+        if self.weapon is not None:
+            self.weapon.master = None
+        super().dying()
 
     @property
     def size(self): return self.__size
@@ -182,42 +213,28 @@ class Hunter(Primitive):
 class Player(Hunter):
     img = get_image(f"person/blue-circle")
     def verification(self):
-        super().verification()
 
-        '''Все блоки if-else работают только с разными значениями и их исходом.
-        Но схема работы такова что после пересекания границы все обькты в "памяти"
-        перемещаються в указонной координаты равной скорости персонажа, создовая
-        эффект перемещенния игрока и камеры, и перемещая координату игрока на
-        координату границы'''
-        
+        self.check_motion()
+
         #Работаем с x координатой
-        if self.x + self.size > app_win[0]-tithe_win[0]:
+        if self.x + self.size > camera_walls["x"]["right"]:
             for item in memory:
-                if item == self:
-                    self.x = app_win[0]-tithe_win[0] - self.size
-                else:
-                    item.x -= self.speed
-        elif self.x < tithe_win[0]:
+                item.x -= self.speed
+
+        elif self.x < camera_walls["x"]["left"]:
             for item in memory:
-                if item == self:
-                    self.x = tithe_win[0]
-                else:
-                    item.x += self.speed
+                item.x += self.speed
 
         #Работаем с y координатой
-        if self.y < tithe_win[1]:
+        if self.y < camera_walls["y"]["up"]:
             for item in memory:
-                if item == self:
-                    self.y = tithe_win[1]
-                else:
-                    item.y += self.speed
+                item.y += self.speed
 
-        elif self.y > app_win[1] - tithe_win[1] - self.size:
+        elif self.y > camera_walls["y"]["down"] - self.size:
             for item in memory:
-                if item == self:
-                    self.y = app_win[1] - tithe_win[1] - self.size
-                else:
-                    item.y -= self.speed
+                item.y -= self.speed
+
+        super().verification()
 
 
 #Тестовый микрочелик отличающийся от своего предка только постоянными атаками
@@ -237,11 +254,12 @@ pygame.mixer.music.set_volume(0.08)
 clock = pygame.time.Clock()
 
 #Сущность которой мы можем управлять
-Hero = Player("Main Hero", 200, 200)
-#Тестовая сущность
-Amongus = Opponent("Red Hunter", 500, 300)
+Hero = Player("Main Hero", app_win[0]//2 - 40, app_win[1]//2 - 40)
 
-print(memory)
+#Тестовая сущность
+Opponent("Red Hunter", 525, 325)
+
+if debug_mode: print(f"memory: {memory}")
 
 #Главный цикл
 while game and __name__ == '__main__':
@@ -251,34 +269,49 @@ while game and __name__ == '__main__':
         if action.type == pygame.QUIT:
             game = False
 
-        if action.type == pygame.MOUSEBUTTONDOWN:
-            if action.button == 1:
-                Hero.action = "attack"
+        if Hero in memory:
+            if action.type == pygame.MOUSEBUTTONDOWN:
+                if action.button == 1:
+                    Hero.action = "attack"
 
-        if action.type == pygame.KEYDOWN:
-            if action.key == pygame.K_x:
-                Hero.action = "attack"
+            if action.type == pygame.KEYDOWN:
+                if action.key == pygame.K_x:
+                    Hero.action = "attack"
 
-            if action.key in key["LEFT"]: Hero.movement["left"] = [True, random_pole()]
-            if action.key in key["RIGHT"]: Hero.movement["right"] = [True, random_pole()]
-            if action.key in key["UP"]: Hero.movement["up"] = [True, random_pole()]
-            if action.key in key["DOWN"]: Hero.movement["down"] = [True, random_pole()]
+                if action.key in key["LEFT"]: Hero.movement["left"] = [True, random_pole()]
+                if action.key in key["RIGHT"]: Hero.movement["right"] = [True, random_pole()]
+                if action.key in key["UP"]: Hero.movement["up"] = [True, random_pole()]
+                if action.key in key["DOWN"]: Hero.movement["down"] = [True, random_pole()]
 
-        if action.type == pygame.KEYUP:
-            if action.key in key["LEFT"]: Hero.movement["left"] = [False, random_pole()]
-            if action.key in key["RIGHT"]: Hero.movement["right"] = [False, random_pole()]
-            if action.key in key["UP"]: Hero.movement["up"] = [False, random_pole()]
-            if action.key in key["DOWN"]: Hero.movement["down"] = [False, random_pole()]
+            if action.type == pygame.KEYUP:
+                if action.key in key["LEFT"]: Hero.movement["left"] = [False, random_pole()]
+                if action.key in key["RIGHT"]: Hero.movement["right"] = [False, random_pole()]
+                if action.key in key["UP"]: Hero.movement["up"] = [False, random_pole()]
+                if action.key in key["DOWN"]: Hero.movement["down"] = [False, random_pole()]
 
 
-    app.blit(statics_image["glade"], (0, 0))
+    app.fill(((28, 147, 64)))#statics_image["glade"]
+
+    if debug_mode:
+        for pos_y in ("up", "down"):
+            pygame.draw.line(app, color["debug_mode"],
+                [camera_walls["x"]["left"], camera_walls["y"][pos_y]],
+                [camera_walls["x"]["right"], camera_walls["y"][pos_y]]
+            )
+
+        for pos_x in ("left", "right"):
+            pygame.draw.line(app, color["debug_mode"],
+                [camera_walls["x"][pos_x], camera_walls["y"]["up"]],
+                [camera_walls["x"][pos_x], camera_walls["y"]["down"]]
+            )
 
     #Работа с хранилищем
     for item in memory:
         item.verification() #Для каждого обьекта проводим его личную проверку
-        app.blit(*item.drawing_data()) #Рисуем обькт из упакованных данных
-        if item.__class__ in Hunter.__subclasses__():
-            for hitbox in item.hitbox:
-                pygame.draw.rect(app, (255, 0, 0), (hitbox[0], hitbox[1], 1, 1))
+        if item in memory:
+            app.blit(*item.drawing_data()) #Рисуем обькт из упакованных данных
+            if debug_mode and item.__class__ in Hunter.__subclasses__():
+                for hitbox in item.hitbox:
+                    pygame.draw.rect(app, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
 
     pygame.display.update()

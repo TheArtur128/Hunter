@@ -4,7 +4,6 @@ from random import randint as random
 import os
 import json
 import math
-#from win32api import GetSystemMetrics as win
 
 pygame.init()
 
@@ -64,10 +63,16 @@ with open(f"{folder_root}/theme/{theme}-theme.json", "r") as file:
 
 #Глобальные состояния
 game = True
+debug_mode = True
 time = True
 
 #Константы и системная информация
 FPS = 30
 
-app_win = (600, 400)
+app_win = (640, 430)
 tithe_win = [app_win[0]//10, app_win[1]//10]
+
+camera_walls = {
+    "x": {"left": tithe_win[0]*3, "right": app_win[0] - tithe_win[0]*3},
+    "y": {"up": tithe_win[1]*3, "down": app_win[1] - tithe_win[1]*3}
+}
