@@ -123,8 +123,8 @@ class Hunter(Movable):
             except AttributeError:
                 self.weapon.action = {
                     "time-indicator": self.weapon.__class__.average_speed,
-                    "vector-buffer": 0,
-                    "iterations-done": 0
+                    "vector-buffer": 0, #Складываеться с основным вектором оружия
+                    "iterations-done": 0 #Количество прошедших итераций. Нужно для эмуляции покадрового цикла
                 }
 
             #Уменьшаем счётчик до момента удара
@@ -144,14 +144,31 @@ class Hunter(Movable):
                 if self.weapon.action["iterations-done"] == 3:
                     self.weapon.action["vector-buffer"] += 1
                     for prey in Primitive.memory:
+                        hit = False
                         if (prey.__class__ in Hunter.__subclasses__() or prey.__class__ == Hunter) and prey != self:
-                            if (self.x <= prey.x + prey.size//2 <= self.x + self.size
-                            and self.y >= prey.y + prey.size >= self.y - self.size//2):
-                                prey.health -= self.weapon.damage
-                                prey.y -= self.weapon.damage * 5
-                                self.weapon.health -= 1
-                                if debug_mode:
-                                    print(f"{self} hit {prey}! {prey} have {prey.health} hp")
+                            for hitbox_point in prey.hitbox:
+                                if (self.vector == 1
+                                    and self.x <= hitbox_point[0] <= self.x + self.size
+                                    and self.y >= hitbox_point[1] >= self.y - self.size//2):
+                                    hit = True
+
+                                elif (self.vector == 2
+                                    and self.x + self.size//2 <= hitbox_point[0] <= item.x+int(item.size*1.5)
+                                    and self.y + self.size//2 >= hitbox_point[1] >= self.y - self.size//2):
+                                    hit = True
+
+                                elif (self.vector == 5
+                                    and self.x <= hitbox_point[0] <= self.x + self.size
+                                    and self.y + int(self.size*1.5) >= hitbox_point[1] >= self.y + self.size):
+                                    hit = True
+
+                                if hit:
+                                    prey.health -= self.weapon.damage
+                                    prey.y -= self.weapon.damage * 5
+                                    self.weapon.health -= 1
+                                    if debug_mode:
+                                        print(f"{self} hit {prey}! {prey} have {prey.health} hp")
+                                    break
 
                 #Завершаем удар
                 if self.weapon.action["iterations-done"] >= 4:
@@ -164,7 +181,7 @@ class Hunter(Movable):
         else:
             self.action = "quiet"
 
-    def check_motion(self):
+    def _check_motion(self):
         #Если были нажаты две смежные кнопки
         if self.movement["left"][0] and self.movement["up"][0]:
             self.vector = 8
@@ -229,17 +246,19 @@ class Hunter(Movable):
 
         self.vector = check_vector(self.vector)
 
-    def verification(self):
-        #Вызываем функию состояния
-        if self.action == "attack": self.__attack()
-
-        if self.__class__ == Hunter: self.check_motion()
-
-        #Подгоняем хитбокс под новые координаты
+    def _install_hitbox(self):
         self.hitbox = []
         for i in range(360):
             vec = pygame.math.Vector2(0, -40).rotate(i)
             self.hitbox.append([int(self.x+self.size//2+vec.x), int(self.y+self.size//2+vec.y)])
+
+    def verification(self):
+        #Вызываем функию состояния
+        if self.action == "attack": self.__attack()
+
+        if self.__class__ == Hunter: self._check_motion()
+
+        self._install_hitbox()
 
         if self.health <= 0:
             self.dying()
@@ -257,7 +276,7 @@ class Player(Hunter):
     img = get_files(f"person/blue-circle")
     def verification(self):
 
-        self.check_motion()
+        self._check_motion()
 
         #Работаем с x координатой
         if self.x + self.size > camera_walls["x"]["right"]:
@@ -363,15 +382,27 @@ while game and __name__ == '__main__':
 
     #Работа с обьектами в хранилище
     for item in Primitive.memory:
-        try:
-            item.verification()
-        except AttributeError:
-            pass
+        #Личноклассовые вычесления
+        try: item.verification()
+        except AttributeError: pass
+
+        #Рендер
         if item in Primitive.memory:
             app.blit(*item.drawing_data())
-            #Личные кейсы
-            if debug_mode and item.__class__ in Hunter.__subclasses__():
+            #debug HUD обьектов
+            if debug_mode and item.__class__ in Hunter.__subclasses__() or item.__class__ == Hunter:
+                #Зона попадания удара
+                if item.vector == 1:
+                    pygame.draw.line(app, color["debug_mode"], [item.x, item.y], [item.x+item.size, item.y-item.size//2])
+                    pygame.draw.line(app, color["debug_mode"], [item.x, item.y-item.size//2], [item.x+item.size, item.y])
+                elif item.vector == 2:
+                    pygame.draw.line(app, color["debug_mode"], [item.x+item.size//2, item.y-item.size//2], [item.x+int(item.size*1.5), item.y+item.size//2])
+                    pygame.draw.line(app, color["debug_mode"], [item.x+item.size, item.y-item.size//2], [item.x+item.size, item.y+item.size//2])
+                elif item.vector == 5:
+                    pygame.draw.line(app, color["debug_mode"], [item.x, item.y+int(item.size*1.5)], [item.x+item.size, item.y+item.size])
+                    pygame.draw.line(app, color["debug_mode"], [item.x, item.y+item.size], [item.x+item.size, item.y+int(item.size*1.5)])
                 for hitbox in item.hitbox:
                     pygame.draw.rect(app, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
+
 
     pygame.display.update()
