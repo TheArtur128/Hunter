@@ -9,3 +9,6 @@ Hunter
   * [Python](https://www.python.org/downloads/)
   * [PyGame](https://pypi.org/project/pygame/)
   * [Random](https://pypi.org/project/random2/)
+
+ Optional:
+ * [Pillow ](https://pypi.org/project/Pillow/)

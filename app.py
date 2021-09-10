@@ -1,19 +1,20 @@
 from configuration import *
 
+
 #Абстрактный класс всего что позволяет отрисовать pygame
 class Primitive:
     #Хранилище всех сущностей для будущего отрисосвывания.
     memory = []
 
-    def __init__(self, name, x, y, health):
+    data_way = "person/blue-circle"
+
+    def __init__(self, name, x, y, health=100):
         Primitive.memory.append(self)
         self.name = name
         if debug_mode: print(f"{self} initialized")
         self.x = x
         self.y = y
         self.health = health
-        '''В игре 8 векторов, первый вектор обозначает 90°,
-        последующие уменьшены на 45° от предыдущего'''
         self.img = self.__class__.img
 
     def __repr__(self):
@@ -24,7 +25,7 @@ class Primitive:
         self.__dict__ = {}
         Primitive.memory.remove(self)
 
-
+#Недвижимые обьекты
 class Static(Primitive):
     def __init__(self, name, x, y, health):
         super().__init__(name=name, x=x, y=y, health=health)
@@ -34,14 +35,16 @@ class Static(Primitive):
 
 
 class Stone(Static):
-    """WARTHING! test"""
     img = get_files("statics")
 
 
+#Движимые обьекты
 class Movable(Primitive):
     def __init__(self, name, x, y, health, speed, vector=1):
         super().__init__(name=name, x=x, y=y, health=health)
         self.speed = speed
+        '''В игре 8 векторов, первый вектор обозначает 90°,
+        последующие уменьшены на 45° от предыдущего'''
         self.vector = vector
 
     def drawing_data(self):
@@ -49,7 +52,7 @@ class Movable(Primitive):
 
 
 class Weapon(Movable):
-    def __init__(self, name, damage=10, health=5, x=0, y=0, vector=1, speed=FPS, master=None):
+    def __init__(self, name, damage=10, health=100, x=0, y=0, vector=1, speed=FPS, master=None):
         super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
         #Атрибуты описывающие оружие непосредственно
         self.damage = damage
@@ -91,27 +94,43 @@ class Weapon(Movable):
 
     def verification(self):
         self.__update_coordinates()
+        self._install_hitbox()
 
 
 class Katana(Weapon):
     img = get_files(f"weapon/katana/graphix")
     average_speed = FPS // 10
-    def __init__(self, name="katana", health=10, damage=10, speed=average_speed, x=0, y=0, vector=1, master=None):
+    def __init__(self, name="katana", health=100, damage=10, speed=average_speed, x=0, y=0, vector=1, master=None):
         super().__init__(name, damage=damage, health=health, speed=Katana.average_speed, x=x, y=y, vector=vector, master=master)
+
+    def _install_hitbox(self):
+        self.hitbox = []
+        if self.vector in (1, 5):
+            for i in range(75):
+                self.hitbox.append([self.x+2, self.y+i])
+        elif self.vector in (2, 6):
+            for i in range(54):
+                self.hitbox.append([self.x+i, self.y+54-i])
+        elif self.vector in (3, 7):
+            for i in range(75):
+                self.hitbox.append([self.x+i, self.y+2])
+        elif self.vector in (4, 8):
+            for i in range(54):
+                self.hitbox.append([self.x+i, self.y+i])
 
 
 #Персонажи как класс
 class Hunter(Movable):
-    img = get_files(f"person/red-circle")
+    img = get_files("person/red-circle")
     def __init__(self, name, x, y, health=100, speed=7, vector=1, weapon=Katana):
         super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
         self.__size = 81
         self.action = "quiet"
         self.movement = {
-            "left": [False],
-            "right": [False],
-            "up": [False],
-            "down": [False]
+            "left": False,
+            "right": False,
+            "up": False,
+            "down": False
         }
         self.weapon = weapon(master=self)
 
@@ -132,49 +151,26 @@ class Hunter(Movable):
             if self.weapon.action["time-indicator"] <= 0:
                 self.weapon.action["time-indicator"] = self.weapon.__class__.average_speed
                 self.weapon.action["iterations-done"] += 1
-
-                #перемещаем оружие
-                if self.weapon.action["iterations-done"] == 1:
-                    self.weapon.action["vector-buffer"] -= 1
-
-                if self.weapon.action["iterations-done"] == 2:
-                    self.weapon.action["vector-buffer"] -= 3
-                    self.weapon.coordinates[self.vector] = [40, 80]
-
-                if self.weapon.action["iterations-done"] == 3:
-                    self.weapon.action["vector-buffer"] += 1
-                    for prey in Primitive.memory:
-                        hit = False
-                        if (prey.__class__ in Hunter.__subclasses__() or prey.__class__ == Hunter) and prey != self:
-                            for hitbox_point in prey.hitbox:
-                                if (self.vector == 1
-                                    and self.x <= hitbox_point[0] <= self.x + self.size
-                                    and self.y >= hitbox_point[1] >= self.y - self.size//2):
-                                    hit = True
-
-                                elif (self.vector == 2
-                                    and self.x + self.size//2 <= hitbox_point[0] <= item.x+int(item.size*1.5)
-                                    and self.y + self.size//2 >= hitbox_point[1] >= self.y - self.size//2):
-                                    hit = True
-
-                                elif (self.vector == 5
-                                    and self.x <= hitbox_point[0] <= self.x + self.size
-                                    and self.y + int(self.size*1.5) >= hitbox_point[1] >= self.y + self.size):
-                                    hit = True
-
-                                if hit:
-                                    prey.health -= self.weapon.damage
-                                    prey.y -= self.weapon.damage * 5
-                                    self.weapon.health -= 1
-                                    if debug_mode:
-                                        print(f"{self} hit {prey}! {prey} have {prey.health} hp")
-                                    break
+                self.weapon.action["vector-buffer"] -= 1
 
                 #Завершаем удар
                 if self.weapon.action["iterations-done"] >= 4:
                     self.action = "quiet"
                     self.weapon.coordinates = self.weapon.default_coordinates()
                     del self.weapon.action
+
+                #Проверяем атакавали-ли и в последствии атакуем
+                for prey in Primitive.memory:
+                    hit = False
+                    if not prey in [self, self.weapon]:
+                        for weapon_point in self.weapon.hitbox:
+                            if weapon_point in prey.hitbox:
+                                prey.health -= self.weapon.damage
+                                prey.y -= 50#self.weapon.damage * 5
+                                self.weapon.health -= 10
+                                if debug_mode:
+                                    print(f"{self} hit {prey}! {prey} have {prey.health} hp")
+                                break
 
             self.weapon.vector = check_vector(self.weapon.vector)
 
@@ -183,62 +179,58 @@ class Hunter(Movable):
 
     def _check_motion(self):
         #Если были нажаты две смежные кнопки
-        if self.movement["left"][0] and self.movement["up"][0]:
+        if self.movement["left"] and self.movement["up"]:
             self.vector = 8
             vector_ban = True
-        elif self.movement["left"][0] and self.movement["down"][0]:
+        elif self.movement["left"] and self.movement["down"]:
             self.vector = 6
             vector_ban = True
-        elif self.movement["right"][0] and self.movement["up"][0]:
+        elif self.movement["right"] and self.movement["up"]:
             self.vector = 2
             vector_ban = True
-        elif self.movement["right"][0] and self.movement["down"][0]:
+        elif self.movement["right"] and self.movement["down"]:
             self.vector = 4
             vector_ban = True
         else:
             vector_ban = False
 
         #Изминение х координаты
-        if self.movement["left"][0]:
-            if self.x > 0:
-                self.x -= self.speed
+        if self.movement["left"]:
+            self.x -= self.speed
             if not vector_ban:
                 if self.vector == 3:
-                    self.vector += self.movement["left"][1]
+                    self.vector += random_pole()
                 elif self.vector in [8, 1, 2]:
                     self.vector -= 1
                 elif self.vector in [4, 5, 6]:
                     self.vector += 1
 
-        elif self.movement["right"][0]:
-            if self.x + self.size < app_win[0]:
-                self.x += self.speed
+        elif self.movement["right"]:
+            self.x += self.speed
             if not vector_ban:
                 if self.vector == 7:
-                    self.vector += self.movement["right"][1]
+                    self.vector += random_pole()
                 elif self.vector in [4, 5, 6]:
                     self.vector -= 1
                 elif self.vector in [8, 1, 2]:
                     self.vector += 1
 
         #Изминение y координаты
-        if self.movement["up"][0]:
-            if self.y > 0:
-                self.y -= self.speed
+        if self.movement["up"]:
+            self.y -= self.speed
             if not vector_ban:
                 if self.vector == 5:
-                    self.vector += self.movement["up"][1]
+                    self.vector += random_pole()
                 elif self.vector in [2, 3, 4]:
                     self.vector -= 1
                 elif self.vector in [6, 7, 8]:
                     self.vector += 1
 
-        elif self.movement["down"][0]:
-            if self.y + self.size < app_win[1]:
-                self.y += self.speed
+        elif self.movement["down"]:
+            self.y += self.speed
             if not vector_ban:
                 if self.vector == 1:
-                    self.vector += self.movement["down"][1]
+                    self.vector += random_pole()
                 elif self.vector in [2, 3, 4]:
                     self.vector += 1
                 elif self.vector in [6, 7, 8]:
@@ -273,7 +265,7 @@ class Hunter(Movable):
 
 
 class Player(Hunter):
-    img = get_files(f"person/blue-circle")
+    img = get_files("person/blue-circle")
     def verification(self):
 
         self._check_motion()
@@ -301,7 +293,7 @@ class Player(Hunter):
 
 #Тестовый микрочелик отличающийся от своего предка только постоянными атаками
 class Opponent(Hunter):
-    img = get_files(f"person/red-circle")
+    img = get_files("person/red-circle")
     def verification(self):
         self.action = "attack"
         super().verification()
@@ -343,25 +335,25 @@ while game and __name__ == '__main__':
                     Hero.action = "attack"
 
                 if action.key in key["moving player"]["LEFT"]:
-                    Hero.movement["left"] = [True, random_pole()]
+                    Hero.movement["left"] = True
                 if action.key in key["moving player"]["RIGHT"]:
-                    Hero.movement["right"] = [True, random_pole()]
+                    Hero.movement["right"] = True
 
                 if action.key in key["moving player"]["UP"]:
-                    Hero.movement["up"] = [True, random_pole()]
+                    Hero.movement["up"] = True
                 if action.key in key["moving player"]["DOWN"]:
-                    Hero.movement["down"] = [True, random_pole()]
+                    Hero.movement["down"] = True
 
             if action.type == pygame.KEYUP:
                 if action.key in key["moving player"]["LEFT"]:
-                    Hero.movement["left"] = [False, random_pole()]
+                    Hero.movement["left"] = False
                 if action.key in key["moving player"]["RIGHT"]:
-                    Hero.movement["right"] = [False, random_pole()]
+                    Hero.movement["right"] = False
 
                 if action.key in key["moving player"]["UP"]:
-                    Hero.movement["up"] = [False, random_pole()]
+                    Hero.movement["up"] = False
                 if action.key in key["moving player"]["DOWN"]:
-                    Hero.movement["down"] = [False, random_pole()]
+                    Hero.movement["down"] = False
 
 
     app.fill(((28, 147, 64)))
@@ -390,19 +382,10 @@ while game and __name__ == '__main__':
         if item in Primitive.memory:
             app.blit(*item.drawing_data())
             #debug HUD обьектов
-            if debug_mode and item.__class__ in Hunter.__subclasses__() or item.__class__ == Hunter:
-                #Зона попадания удара
-                if item.vector == 1:
-                    pygame.draw.line(app, color["debug_mode"], [item.x, item.y], [item.x+item.size, item.y-item.size//2])
-                    pygame.draw.line(app, color["debug_mode"], [item.x, item.y-item.size//2], [item.x+item.size, item.y])
-                elif item.vector == 2:
-                    pygame.draw.line(app, color["debug_mode"], [item.x+item.size//2, item.y-item.size//2], [item.x+int(item.size*1.5), item.y+item.size//2])
-                    pygame.draw.line(app, color["debug_mode"], [item.x+item.size, item.y-item.size//2], [item.x+item.size, item.y+item.size//2])
-                elif item.vector == 5:
-                    pygame.draw.line(app, color["debug_mode"], [item.x, item.y+int(item.size*1.5)], [item.x+item.size, item.y+item.size])
-                    pygame.draw.line(app, color["debug_mode"], [item.x, item.y+item.size], [item.x+item.size, item.y+int(item.size*1.5)])
-                for hitbox in item.hitbox:
-                    pygame.draw.rect(app, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
-
+            if debug_mode:
+                pygame.draw.rect(app, color["debug_mode"], (item.x, item.y, 1, 1))
+                if item.__class__ in Weapon.__subclasses__() or item.__class__ in Hunter.__subclasses__():
+                    for hitbox in item.hitbox:
+                        pygame.draw.rect(app, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
 
     pygame.display.update()

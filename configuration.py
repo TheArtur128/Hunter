@@ -1,6 +1,11 @@
 import json
 import os
 
+try:
+    from PIL import Image
+except ModuleNotFoundError:
+    pass
+
 import pygame
 from random import randint as random
 
@@ -10,17 +15,27 @@ folder_root = os.path.dirname(os.path.abspath(__file__))
 
 
 #Парсим все файлы из папки в словарь под их имена
-def get_files(directory):
+def get_files(directory, characteristic=False):
     directory = f"{folder_root}/material/" + directory
     with os.scandir(directory) as listOfEntries:
         files = {}
         for entry in listOfEntries:
             if entry.is_file():
-                file = pygame.image.load(f"{directory}/{entry.name}")
-                #Проверки для нужных форматов
+                #Работа для разных форматов
                 if entry.name.split(".")[1] in ["png", "img", "ico"]:
-                    file.set_colorkey((255, 255, 255))
+                    if not characteristic:
+                        file = pygame.image.load(f"{directory}/{entry.name}")
+                        file.set_colorkey((255, 255, 255))
+                    #test
+                    elif characteristic:
+                        file_inside = Image.open(f"{directory}/{entry.name}")
+                        file = {
+                            "original": file_inside,
+                            "size": file_inside.size
+                        }
+
                 files[entry.name.split(".")[0]] = file
+
         if len(files) == 1:
             files = files[list(files.keys())[0]]
         return files
