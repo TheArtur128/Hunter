@@ -1,11 +1,6 @@
 import json
 import os
 
-try:
-    from PIL import Image
-except ModuleNotFoundError:
-    pass
-
 import pygame
 from random import randint as random
 
@@ -39,6 +34,7 @@ def get_files(directory, characteristic=False):
         if len(files) == 1:
             files = files[list(files.keys())[0]]
         return files
+
 
 #Возврощает рандомный знак
 def random_pole():

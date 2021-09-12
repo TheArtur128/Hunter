@@ -8,7 +8,7 @@ class Primitive:
 
     data_way = "person/blue-circle"
 
-    def __init__(self, name, x, y, health=100):
+    def __init__(self, name, x, y, speed, vector, health=100):
         Primitive.memory.append(self)
         self.name = name
         if debug_mode: print(f"{self} initialized")
@@ -16,6 +16,10 @@ class Primitive:
         self.y = y
         self.health = health
         self.img = self.__class__.img
+        self.speed = speed
+        '''В игре 8 векторов, первый вектор обозначает 90°,
+        последующие уменьшены на 45° от предыдущего'''
+        self.vector = vector
 
     def __repr__(self):
         return f"<{self.name}>"
@@ -25,33 +29,11 @@ class Primitive:
         self.__dict__ = {}
         Primitive.memory.remove(self)
 
-#Недвижимые обьекты
-class Static(Primitive):
-    def __init__(self, name, x, y, health):
-        super().__init__(name=name, x=x, y=y, health=health)
-
-    def drawing_data(self):
-        return [self.img, (self.x, self.y)]
-
-
-class Stone(Static):
-    img = get_files("statics")
-
-
-#Движимые обьекты
-class Movable(Primitive):
-    def __init__(self, name, x, y, health, speed, vector=1):
-        super().__init__(name=name, x=x, y=y, health=health)
-        self.speed = speed
-        '''В игре 8 векторов, первый вектор обозначает 90°,
-        последующие уменьшены на 45° от предыдущего'''
-        self.vector = vector
-
     def drawing_data(self):
         return [self.img[str(self.vector)], (self.x, self.y)]
 
 
-class Weapon(Movable):
+class Weapon(Primitive):
     def __init__(self, name, damage=10, health=100, x=0, y=0, vector=1, speed=FPS, master=None):
         super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
         #Атрибуты описывающие оружие непосредственно
@@ -120,12 +102,12 @@ class Katana(Weapon):
 
 
 #Персонажи как класс
-class Hunter(Movable):
+class Hunter(Primitive):
     img = get_files("person/red-circle")
-    def __init__(self, name, x, y, health=100, speed=7, vector=1, weapon=Katana):
+    def __init__(self, name, x, y, health=100, speed=5, vector=1, weapon=Katana):
         super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
         self.__size = 81
-        self.action = "quiet"
+        self.__action = "quiet"
         self.movement = {
             "left": False,
             "right": False,
@@ -161,21 +143,52 @@ class Hunter(Movable):
 
                 #Проверяем атакавали-ли и в последствии атакуем
                 for prey in Primitive.memory:
-                    hit = False
-                    if not prey in [self, self.weapon]:
+                    if prey is not self and not prey.__class__ in Weapon.__subclasses__():
                         for weapon_point in self.weapon.hitbox:
                             if weapon_point in prey.hitbox:
-                                prey.health -= self.weapon.damage
-                                prey.y -= 50#self.weapon.damage * 5
-                                self.weapon.health -= 10
-                                if debug_mode:
-                                    print(f"{self} hit {prey}! {prey} have {prey.health} hp")
+                                self.weapon.health -= 5
+
+                                if prey.action is not "stun" and prey.weapon is not None:
+                                    prey.health -= self.weapon.damage
+                                    if debug_mode: print(f"{self} hit {prey}! {prey} have {prey.health} hp")
+                                else:
+                                    prey.health -= self.weapon.damage // 2
+                                    if debug_mode: print(f"{self} hit {prey}! {prey} have {prey.health} hp and {prey} defended self")
+
+                                if self.vector in (6, 7, 8):
+                                    prey.x -= self.weapon.damage * 5
+                                if self.vector in (2, 3, 4):
+                                    prey.x += self.weapon.damage * 5
+                                if self.vector in (8, 1, 2):
+                                    prey.y -= self.weapon.damage * 5
+                                if self.vector in (4, 5, 6):
+                                    prey.y += self.weapon.damage * 5
+
+                                prey.action = "stun"
                                 break
 
             self.weapon.vector = check_vector(self.weapon.vector)
 
         else:
             self.action = "quiet"
+
+    def __stun(self):
+        try:
+            self.stun_attribute
+        except AttributeError:
+            self.stun_attribute = {
+                "stun-time": FPS
+            }
+            if self.weapon is not None:
+                self.weapon.action = {
+                    "vector-buffer": -2
+                }
+
+        self.stun_attribute["stun-time"] -= 1
+        if self.stun_attribute["stun-time"] <= 0:
+            del self.stun_attribute
+            del self.weapon.action
+            self.__action = "quiet"
 
     def _check_motion(self):
         #Если были нажаты две смежные кнопки
@@ -247,8 +260,9 @@ class Hunter(Movable):
     def verification(self):
         #Вызываем функию состояния
         if self.action == "attack": self.__attack()
+        elif self.action == "stun": self.__stun()
 
-        if self.__class__ == Hunter: self._check_motion()
+        if self.__class__ is not Player: self._check_motion()
 
         self._install_hitbox()
 
@@ -262,6 +276,13 @@ class Hunter(Movable):
 
     @property
     def size(self): return self.__size
+
+    @property
+    def action(self): return self.__action
+    @action.setter
+    def action(self, state):
+        if self.__action != "stun":
+            self.__action = state
 
 
 class Player(Hunter):
@@ -296,6 +317,7 @@ class Opponent(Hunter):
     img = get_files("person/red-circle")
     def verification(self):
         self.action = "attack"
+        #self.movement["left"] = True
         super().verification()
 
 
@@ -305,87 +327,86 @@ if __name__ == '__main__':
     pygame.display.set_icon(icon)
     pygame.display.set_caption("Lonely Hunter")
     pygame.mixer.music.play(loops=-1)
-    pygame.mixer.music.set_volume(0.6)
+    pygame.mixer.music.set_volume(0.5)
     clock = pygame.time.Clock()
 
     #Сущность которой мы можем управлять
-    Hero = Player("Main Hero", app_win[0]//2 - 40, app_win[1]//2 - 40)
+    Hero = Player("Main Hero", app_win[0]//2 - 40, app_win[1]//2 - 40, speed=7)
 
     #Тестовые сущности
     Opponent("Red Hunter", 525, 325)
-    Stone("billy", 100, 100, 1)
+    Hunter("Test Hunter", 75, 200)
 
     if debug_mode: print(f"Primitive.memory: {Primitive.memory}")
+    #Главный цикл
+    while game:
+        clock.tick(FPS)
 
-#Главный цикл
-while game and __name__ == '__main__':
-    clock.tick(FPS)
+        for action in pygame.event.get():
+            if action.type == pygame.QUIT:
+                game = False
 
-    for action in pygame.event.get():
-        if action.type == pygame.QUIT:
-            game = False
+            if Hero in Primitive.memory:
+                if action.type == pygame.MOUSEBUTTONDOWN:
+                    if action.button == 1:
+                        Hero.action = "attack"
 
-        if Hero in Primitive.memory:
-            if action.type == pygame.MOUSEBUTTONDOWN:
-                if action.button == 1:
-                    Hero.action = "attack"
+                if action.type == pygame.KEYDOWN:
+                    if action.key == pygame.K_x:
+                        Hero.action = "attack"
+                    if debug_mode and action.key == pygame.K_h:
+                        print(f"Player inside: {Hero.__dict__}")
 
-            if action.type == pygame.KEYDOWN:
-                if action.key == pygame.K_x:
-                    Hero.action = "attack"
+                    if action.key in key["moving player"]["LEFT"]:
+                        Hero.movement["left"] = True
+                    if action.key in key["moving player"]["RIGHT"]:
+                        Hero.movement["right"] = True
 
-                if action.key in key["moving player"]["LEFT"]:
-                    Hero.movement["left"] = True
-                if action.key in key["moving player"]["RIGHT"]:
-                    Hero.movement["right"] = True
+                    if action.key in key["moving player"]["UP"]:
+                        Hero.movement["up"] = True
+                    if action.key in key["moving player"]["DOWN"]:
+                        Hero.movement["down"] = True
 
-                if action.key in key["moving player"]["UP"]:
-                    Hero.movement["up"] = True
-                if action.key in key["moving player"]["DOWN"]:
-                    Hero.movement["down"] = True
+                if action.type == pygame.KEYUP:
+                    if action.key in key["moving player"]["LEFT"]:
+                        Hero.movement["left"] = False
+                    if action.key in key["moving player"]["RIGHT"]:
+                        Hero.movement["right"] = False
 
-            if action.type == pygame.KEYUP:
-                if action.key in key["moving player"]["LEFT"]:
-                    Hero.movement["left"] = False
-                if action.key in key["moving player"]["RIGHT"]:
-                    Hero.movement["right"] = False
+                    if action.key in key["moving player"]["UP"]:
+                        Hero.movement["up"] = False
+                    if action.key in key["moving player"]["DOWN"]:
+                        Hero.movement["down"] = False
 
-                if action.key in key["moving player"]["UP"]:
-                    Hero.movement["up"] = False
-                if action.key in key["moving player"]["DOWN"]:
-                    Hero.movement["down"] = False
+        app.fill(((28, 147, 64)))
 
-
-    app.fill(((28, 147, 64)))
-
-    #Граница пересечение через которую начинает двигаться камера
-    if debug_mode:
-        for pos_y in ("up", "down"):
-            pygame.draw.line(app, color["debug_mode"],
+        #Граница пересечение через которую начинает двигаться камера
+        if debug_mode:
+            for pos_y in ("up", "down"):
+                pygame.draw.line(app, color["debug_mode"],
                 [camera_walls["x"]["left"], camera_walls["y"][pos_y]],
                 [camera_walls["x"]["right"], camera_walls["y"][pos_y]]
-            )
+                )
 
-        for pos_x in ("left", "right"):
-            pygame.draw.line(app, color["debug_mode"],
-                [camera_walls["x"][pos_x], camera_walls["y"]["up"]],
-                [camera_walls["x"][pos_x], camera_walls["y"]["down"]]
-            )
+                for pos_x in ("left", "right"):
+                    pygame.draw.line(app, color["debug_mode"],
+                    [camera_walls["x"][pos_x], camera_walls["y"]["up"]],
+                    [camera_walls["x"][pos_x], camera_walls["y"]["down"]]
+                    )
 
-    #Работа с обьектами в хранилище
-    for item in Primitive.memory:
-        #Личноклассовые вычесления
-        try: item.verification()
-        except AttributeError: pass
+        #Работа с обьектами в хранилище
+        for item in Primitive.memory:
+            #Самоличностные вычисления
+            try: item.verification()
+            except AttributeError: pass
 
-        #Рендер
-        if item in Primitive.memory:
-            app.blit(*item.drawing_data())
-            #debug HUD обьектов
-            if debug_mode:
-                pygame.draw.rect(app, color["debug_mode"], (item.x, item.y, 1, 1))
-                if item.__class__ in Weapon.__subclasses__() or item.__class__ in Hunter.__subclasses__():
+            #Рендер
+            if item in Primitive.memory:
+                app.blit(*item.drawing_data())
+                #debug HUD обьектов
+                if debug_mode:
+                    pygame.draw.rect(app, color["debug_mode"], (item.x, item.y, 1, 1))
                     for hitbox in item.hitbox:
                         pygame.draw.rect(app, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
 
-    pygame.display.update()
+        pygame.display.update()
