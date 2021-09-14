@@ -1,46 +1,81 @@
 from configuration import *
 
+Errors = []
 
 #Абстрактный класс всего что позволяет отрисовать pygame
 class Primitive:
     #Хранилище всех сущностей для будущего отрисосвывания.
     memory = []
 
-    data_way = "person/blue-circle"
-
-    def __init__(self, name, x, y, speed, vector, health=100):
+    def __init__(self, x, y):
         Primitive.memory.append(self)
-        self.name = name
-        if debug_mode: print(f"{self} initialized")
         self.x = x
         self.y = y
+
+    def _dying(self):
+        if debug_mode and not self in Hud.memory: print(f"{self} died")
+        self.__dict__ = {}
+        Primitive.memory.remove(self)
+
+
+class Hud(Primitive):
+    font_way = f"{folder_root}/material/general/fonts/Urbanist-Regular.ttf"
+    memory = []
+
+    def __init__(self, x, y, text, color=color["debug_mode"], frames_to_death=FPS, movable=True, smoothing=False, eternal=False, size=22):
+        super().__init__(x=x, y=y)
+        Hud.memory.append(self)
+        self.initial_coordinates = [x, y]
+        self.text = text
+        self.color = color
+        self.size = size
+        self.smoothing = smoothing
+        self.frames_to_death = frames_to_death
+        self.eternal = eternal
+        self.movable = movable
+
+    def verification(self):
+        self.drawing_data = pygame.font.Font(self.__class__.font_way, self.size).render(self.text, self.smoothing, self.color)
+        if not self.movable:
+            self.x, self.y = self.initial_coordinates
+
+        if not self.eternal:
+            self.frames_to_death -= 1
+            if self.frames_to_death <= 0:
+                self._dying()
+
+    def draw(self):
+        app.blit(self.drawing_data, (self.x, self.y))
+
+    def __repr__(self):
+        return f"<Hud>"
+
+
+class Entity(Primitive):
+    def __init__(self, name, x, y, speed, vector, health=100):
+        self.name = name
+        if debug_mode: print(f"{self} initialized")
+        super().__init__(x, y)
         self.health = health
-        self.img = self.__class__.img
         self.speed = speed
         '''В игре 8 векторов, первый вектор обозначает 90°,
         последующие уменьшены на 45° от предыдущего'''
         self.vector = vector
+        self.img = self.__class__.img
+
+    def draw(self):
+        app.blit(self.img[str(self.vector)], (self.x, self.y))
 
     def __repr__(self):
         return f"<{self.name}>"
 
-    def _dying(self):
-        if debug_mode: print(f"{self} died")
-        self.__dict__ = {}
-        Primitive.memory.remove(self)
 
-    def drawing_data(self):
-        return [self.img[str(self.vector)], (self.x, self.y)]
-
-
-class Weapon(Primitive):
+class Weapon(Entity):
     def __init__(self, name, damage=10, health=100, x=0, y=0, vector=1, speed=FPS, master=None):
         super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
-        #Атрибуты описывающие оружие непосредственно
         self.damage = damage
         #Ссылка на персонажа держущего оружие
         self.master = master
-        #Штраф расположении векторов. см документацию метода
         self.coordinates = self.default_coordinates()
 
     def __update_coordinates(self):
@@ -102,7 +137,7 @@ class Katana(Weapon):
 
 
 #Персонажи как класс
-class Hunter(Primitive):
+class Hunter(Entity):
     img = get_files("person/red-circle")
     def __init__(self, name, x, y, health=100, speed=5, vector=1, weapon=Katana):
         super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
@@ -151,11 +186,13 @@ class Hunter(Primitive):
                             if weapon_point in prey.hitbox:
                                 self.weapon.health -= 5
 
-                                if prey.action is not "stun" and prey.weapon is not None:
+                                if prey.action is not "stun" or prey.weapon is not None:
                                     prey.health -= self.weapon.damage
+                                    Hud(text=str(self.weapon.damage), x=prey.x+prey.size//2, y=prey.y+prey.size//2)
                                     if debug_mode: print(f"{self} hit {prey}! {prey} have {prey.health} hp")
                                 else:
                                     prey.health -= self.weapon.damage // 2
+                                    Hud(text=str(self.weapon.damage//2), x=prey.x+prey.size//2, y=prey.y+prey.size//2)
                                     if debug_mode: print(f"{self} hit {prey}! {prey} have {prey.health} hp and {prey} defended self")
 
                                 if self.vector in (6, 7, 8):
@@ -288,6 +325,7 @@ class Hunter(Primitive):
             self.__action = state
 
 
+#Одноэкземплярный класс
 class Player(Hunter):
     img = get_files("person/blue-circle")
     def verification(self):
@@ -448,29 +486,39 @@ if __name__ == '__main__':
         if debug_mode:
             for pos_y in ("up", "down"):
                 pygame.draw.line(app, color["debug_mode"],
-                [camera_walls["x"]["left"], camera_walls["y"][pos_y]],
-                [camera_walls["x"]["right"], camera_walls["y"][pos_y]]
+                    [camera_walls["x"]["left"], camera_walls["y"][pos_y]],
+                    [camera_walls["x"]["right"], camera_walls["y"][pos_y]]
                 )
 
-                for pos_x in ("left", "right"):
-                    pygame.draw.line(app, color["debug_mode"],
+            for pos_x in ("left", "right"):
+                pygame.draw.line(app, color["debug_mode"],
                     [camera_walls["x"][pos_x], camera_walls["y"]["up"]],
                     [camera_walls["x"][pos_x], camera_walls["y"]["down"]]
-                    )
+                )
 
         #Работа с обьектами в хранилище
         for item in Primitive.memory:
             #Самоличностные вычисления
-            try: item.verification()
-            except AttributeError: pass
+            try:
+                item.verification()
+            except Exception as error:
+                Errors.append(error)
 
             #Рендер
             if item in Primitive.memory:
-                app.blit(*item.drawing_data())
-                #debug HUD обьектов
-                if debug_mode:
-                    pygame.draw.rect(app, color["debug_mode"], (item.x, item.y, 1, 1))
-                    for hitbox in item.hitbox:
-                        pygame.draw.rect(app, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
+                item.draw()
+
+                try:
+                    if debug_mode:
+                        pygame.draw.rect(app, color["debug_mode"], (item.x, item.y, 1, 1))
+                        for hitbox in item.hitbox:
+                            pygame.draw.rect(app, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
+                except AttributeError:
+                    pass
 
         pygame.display.update()
+
+if debug_mode:
+    print("\nEXCLUSION ZONE")
+    for error in Errors:
+        print(error)
