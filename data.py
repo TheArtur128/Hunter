@@ -53,14 +53,14 @@ def check_vector(arg):
     return arg
 
 
+def round(vaule, number_after_point=1):
+    if isinstance(vaule, float):
+        return float(str(int(vaule))+ "." + str(vaule).split(".")[1][:number_after_point])
+
+
 #Загружаем глобальные файлы
 soundtrack = pygame.mixer.music.load(f"{folder_root}/material/general/soundtracks/theme.mp3")
 icon = pygame.image.load(f"{folder_root}\material\general\graphix\icon.ico")
-
-#Получаем цвета из заданной темы
-theme = "dark"
-with open(f"{folder_root}/theme/{theme}-theme.json", "r") as file:
-    color = json.loads(file.read())["color"]
 
 #Группы кнопок которые в контесте приводят к одному результату
 key = {
@@ -74,16 +74,30 @@ key = {
 
 #Глобальные состояния
 game = True
-debug_mode = True
-time = True
+exit = False
+debug_mode = False
 
 #Константы и системная информация
+with open(f"{folder_root}/configuration.json", "r") as file:
+    j_soup = json.loads(file.read())
+    color = j_soup["color"]
+    settings = j_soup["settings"]
+
 FPS = 30
 
-app_win = (640, 430)
+time_to_exit = FPS * settings["seconds_to_exit"]
+
+app_win = settings["window"]
 tithe_win = [app_win[0]//10, app_win[1]//10]
 
 camera_walls = {
-    "x": {"left": tithe_win[0]*3, "right": app_win[0] - tithe_win[0]*3},
-    "y": {"up": tithe_win[1]*3, "down": app_win[1] - tithe_win[1]*3}
+    "x": {
+        "left": tithe_win[0]*settings["factor_of_camera_walls"],
+        "right": app_win[0] - tithe_win[0]*settings["factor_of_camera_walls"]
+    },
+
+    "y": {
+        "up": tithe_win[1]*settings["factor_of_camera_walls"],
+        "down": app_win[1] - tithe_win[1]*settings["factor_of_camera_walls"]
+    }
 }
