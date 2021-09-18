@@ -10,24 +10,14 @@ folder_root = os.path.dirname(os.path.abspath(__file__))
 
 
 #Парсим все файлы из папки в словарь под их имена
-def get_files(directory, characteristic=False):
+def get_images(directory):
     directory = f"{folder_root}/material/" + directory
     with os.scandir(directory) as listOfEntries:
         files = {}
         for entry in listOfEntries:
             if entry.is_file():
-                #Работа для разных форматов
-                if entry.name.split(".")[1] in ["png", "img", "ico"]:
-                    if not characteristic:
-                        file = pygame.image.load(f"{directory}/{entry.name}")
-                        file.set_colorkey((255, 255, 255))
-                    #test
-                    elif characteristic:
-                        file_inside = Image.open(f"{directory}/{entry.name}")
-                        file = {
-                            "original": file_inside,
-                            "size": file_inside.size
-                        }
+                file = pygame.image.load(f"{directory}/{entry.name}")
+                file.set_colorkey((255, 255, 255))
 
                 files[entry.name.split(".")[0]] = file
 
@@ -58,6 +48,20 @@ def round(vaule, number_after_point=1):
         return float(str(int(vaule))+ "." + str(vaule).split(".")[1][:number_after_point])
 
 
+def presence_in_inheritance(class_):
+    classes = [class_]
+    while True:
+        free_classes = False
+        for our_class in classes:
+            for subclass in our_class.__subclasses__():
+                if not subclass in classes:
+                    classes.append(subclass)
+                    free_classes = True
+
+        if not free_classes:
+            return classes
+
+
 #Загружаем глобальные файлы
 soundtrack = pygame.mixer.music.load(f"{folder_root}/material/general/soundtracks/theme.mp3")
 icon = pygame.image.load(f"{folder_root}\material\general\graphix\icon.ico")
@@ -72,16 +76,15 @@ key = {
     }
 }
 
-#Глобальные состояния
-game = True
-exit = False
-debug_mode = False
-
-#Константы и системная информация
 with open(f"{folder_root}/configuration.json", "r") as file:
     j_soup = json.loads(file.read())
     color = j_soup["color"]
     settings = j_soup["settings"]
+
+#Глобальные состояния
+game = True
+exit = False
+debug_mode = settings["debug_mode"]
 
 FPS = 30
 

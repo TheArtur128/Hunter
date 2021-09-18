@@ -2,6 +2,7 @@ from data import *
 
 Errors = []
 
+
 #Абстрактный класс всего что позволяет отрисовать pygame
 class Primitive:
     #Хранилище всех сущностей для будущего отрисосвывания.
@@ -11,6 +12,12 @@ class Primitive:
         Primitive.memory.append(self)
         self.x = x
         self.y = y
+
+    def _install_hitbox(self):
+        self.hitbox = [[self.x, self.y]]
+
+    def verification(self):
+        self._install_hitbox()
 
     def _dying(self):
         if debug_mode and not self in Hud.memory: print(f"{self} died")
@@ -32,10 +39,11 @@ class Hud(Primitive):
         self.movable = movable
 
     def verification(self):
+        super().verification()
         if self.master is not None:
             self.x, self.y = self.master.x, self.master.y
 
-        elif not self.movable:
+        if not self.movable:
             self.x, self.y = self.initial_coordinates
 
         if not self.eternal:
@@ -49,7 +57,7 @@ class Hud(Primitive):
         Hud.memory.remove(self)
 
     def __repr__(self):
-        return f"<HUD>"
+        return f"<HUD object>"
 
 
 class Text(Hud):
@@ -68,6 +76,12 @@ class Text(Hud):
 
     def draw(self):
         app.blit(self.drawing_data, (self.x, self.y))
+
+
+class Score(Text):
+    def verification(self):
+        self.text = f"{self.master.killed} kills"
+        super().verification()
 
 
 class Indicator(Hud):
@@ -89,6 +103,37 @@ class Indicator(Hud):
         )
 
 
+#Класс для предметов фона DO TO
+class Static(Primitive):
+    def __init__(self, x, y, img):
+        super().__init__(x, y)
+        Primitive.memory.remove(self)
+        Primitive.memory.insert(0, self)
+        self.img = img
+
+    def __repr__(self):
+        return f"<Static object>"
+
+    def draw(self):
+        app.blit(self.img, (self.x, self.y))
+
+    #DO TO
+    @classmethod
+    def initialize_instances(cls, amount=256, area=[app_win[0]*5, app_win[1]*5]):
+        for i in range(amount):
+            index = {
+                "x": random(-area[0]//2, area[0]//2),
+                "y": random(-area[1]//2, area[1]//2)
+            }
+            key_img = list(cls.images.keys())
+            key_ = key_img[random(0, len(key_img)-1)]
+            Static(index["x"], index["y"], cls.images[key_])
+
+
+class Plants(Static):
+    images = get_images("statics\plants")
+
+
 class Entity(Primitive):
     def __init__(self, name, x, y, speed, vector, health=100):
         self.name = name
@@ -108,6 +153,7 @@ class Entity(Primitive):
         app.blit(self.img[str(self.vector)], (self.x, self.y))
 
     def verification(self):
+        #super().verification()
         if self.health["real"] <= 0:
             self._dying()
             return "dead"
@@ -164,9 +210,9 @@ class Weapon(Entity):
 
 
 class Katana(Weapon):
-    img = get_files(f"weapon/katana/graphix")
+    img = get_images(f"weapon/katana")
     average_speed = FPS // 10
-    def __init__(self, name="katana", health=100, damage=10, speed=average_speed, x=0, y=0, vector=1, master=None):
+    def __init__(self, name="katana", health=20, damage=10, speed=average_speed, x=0, y=0, vector=1, master=None):
         super().__init__(name, damage=damage, health=health, speed=Katana.average_speed, x=x, y=y, vector=vector, master=master)
 
     def _install_hitbox(self):
@@ -191,6 +237,7 @@ class Hunter(Entity):
         super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
         self.__size = 81
         self.__action = "quiet"
+        self.killed = 0
         self.movement = {
             "left": False,
             "right": False,
@@ -206,6 +253,19 @@ class Hunter(Entity):
             self.indicator = Indicator(width=self.__size, x=self.x, y=self.y, master=self)
         else:
             self.indicator = None
+
+    def _taking_damage(self, damage):
+        self.health["real"] -= damage
+        if settings["show_damage"]: Text(text=str(damage), x=self.x+self.size//2, y=self.y+self.size//2, color=color["show_damage"])
+        if debug_mode: print(f"{self} suffered damage equal to {damage}, {self} have {self.health['real']}")
+
+    def _hit(self, prey, damage):
+        if debug_mode: print(f"{self} hit {prey}!")
+        prey._taking_damage(self.weapon.damage)
+        if prey.health["real"] <= 0:
+            if settings["drain_health_on_kill"]: self.health["real"] += self.weapon.damage
+            self.killed += 1
+
 
     def __attack(self):
         if self.weapon is not None:
@@ -234,21 +294,15 @@ class Hunter(Entity):
 
                 #Проверяем атакавали-ли и в последствии атакуем
                 for prey in Primitive.memory:
-                    if prey is not self and not prey.__class__ in Weapon.__subclasses__() and not prey.__class__ in Hud.__subclasses__():
+                    if prey is not self and prey.__class__ in presence_in_inheritance(Hunter):
                         for weapon_point in self.weapon.hitbox:
                             if weapon_point in prey.hitbox:
                                 self.weapon.health["real"] -= 1
 
                                 if prey.action is not "stun" or prey.weapon is None:
-                                    prey.health["real"] -= self.weapon.damage
-                                    if settings["drain_health_on_kill"] and prey.health["real"] <= 0: self.health["real"] += self.weapon.damage
-                                    if settings["show_damage"]: Text(text=str(self.weapon.damage), x=prey.x+prey.size//2, y=prey.y+prey.size//2, color=color["show_damage"])
-                                    if debug_mode: print(f"{self} hit {prey}! {prey} have {prey.health['real']} hp")
+                                    self._hit(prey, self.weapon.damage)
                                 else:
-                                    prey.health["real"] -= self.weapon.damage // 2
-                                    if settings["drain_health_on_kill"] and prey.health["real"] <= 0: self.health["real"] += self.weapon.damage//2
-                                    if settings["show_damage"]: Text(text=str(self.weapon.damage//2), x=prey.x+prey.size//2, y=prey.y+prey.size//2, color=color["show_damage"])
-                                    if debug_mode: print(f"{self} hit {prey}! {prey} have {prey.health['real']} hp and {prey} defended self")
+                                    elf._hit(self.weapon.damage // 2)
 
                                 if self.vector in (6, 7, 8):
                                     prey.x -= self.weapon.damage * 5
@@ -381,7 +435,8 @@ class Hunter(Entity):
 
 #Одноэкземплярный класс
 class Player(Hunter):
-    img = get_files("person/blue-circle")
+    img = get_images("person/blue-circle")
+
     def verification(self):
         self._run()
         self.__move_camera()
@@ -411,7 +466,7 @@ class Player(Hunter):
     def _pick_up_weapons(self, weapon=None):
         if weapon is None:
             for item in Primitive.memory:
-                if item.__class__ in Weapon.__subclasses__():
+                if item.__class__ in presence_in_inheritance(Weapon):
                     if item.master is None:
                         for hitbox_point in item.hitbox:
                             if hitbox_point in self.hitbox:
@@ -425,10 +480,11 @@ class Player(Hunter):
         super()._dying()
         global exit
         exit = True
+        Text(text="The End", x=176, y=150, frames_to_death=time_to_exit, movable=False, size=80)
 
 
 class Opponent(Hunter):
-    img = get_files("person/red-circle")
+    img = get_images("person/red-circle")
     waiting_attack = FPS // 2
     #test
     sum_all = 0
@@ -443,7 +499,7 @@ class Opponent(Hunter):
 
     def verification(self):
         for prey in Primitive.memory:
-            if prey.__class__ is Player:
+            if prey.__class__ in presence_in_inheritance(Player):
                 if self.weapon is not None and self.action is not "stun":
                     if self.x // 10 > prey.x // 10: self.movement["left"] = True
                     else: self.movement["left"] = False
@@ -498,8 +554,10 @@ if __name__ == '__main__':
     Hero = Player("Main Hero", app_win[0]//2 - 40, app_win[1]//2 - 40, speed=7, weapon=None)
 
     #Тестовые сущности
+    if settings["score"]: Hero.score = Score(x=20, y=30, text="", movable=False, eternal=True, frames_to_death=time_to_exit, master=Hero)
+    if settings["plants"]: Plants.initialize_instances()
     Opponent(525, 325)
-    Katana("Excalibur", x=10, y=10, health=15, damage=20)
+    Katana("Excalibur", x=200, y=180, health=15, damage=20)
 
     if debug_mode: print(f"Primitive.memory: {Primitive.memory}\nHud.memory has {len(Hud.memory)} objects")
 
@@ -569,15 +627,11 @@ if __name__ == '__main__':
             if item in Primitive.memory:
                 item.draw()
 
-                try:
-                    if debug_mode and not item.__class__ in Hud.__subclasses__():
-                        pygame.draw.rect(app, color["debug_mode"], (item.x, item.y, 1, 1))
-                        for hitbox in item.hitbox:
-                            pygame.draw.rect(app, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
-                except AttributeError:
-                    pass
+                if debug_mode and item.__class__ in presence_in_inheritance(Entity):
+                    for hitbox in item.hitbox:
+                        pygame.draw.rect(app, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
 
-        if exit:
+        if exit and time_to_exit:
             if debug_mode: print(f"{round(time_to_exit/FPS, 2)} seconds left until the game closes")
             time_to_exit -= 1
             if time_to_exit <= 0:
