@@ -40,6 +40,9 @@ class Hud(Primitive):
 
     def verification(self):
         super().verification()
+        if not self.master in Primitive.memory:
+            self.master = None
+
         if self.master is not None:
             self.x, self.y = self.master.x, self.master.y
 
@@ -105,10 +108,12 @@ class Indicator(Hud):
 
 #Класс для предметов фона DO TO
 class Static(Primitive):
+    memory = []
+
     def __init__(self, x, y, img):
         super().__init__(x, y)
-        Primitive.memory.remove(self)
-        Primitive.memory.insert(0, self)
+        Static.memory.append(self)
+
         self.img = img
 
     def __repr__(self):
@@ -117,7 +122,10 @@ class Static(Primitive):
     def draw(self):
         app.blit(self.img, (self.x, self.y))
 
-    #DO TO
+    def _dying(self):
+        super()._dying()
+        Static.memory.remove(self)
+
     @classmethod
     def initialize_instances(cls, amount=256, area=[app_win[0]*5, app_win[1]*5]):
         for i in range(amount):
@@ -135,7 +143,10 @@ class Plants(Static):
 
 
 class Entity(Primitive):
+    memory = []
+
     def __init__(self, name, x, y, speed, vector, health=100):
+        Entity.memory.append(self)
         self.name = name
         if debug_mode: print(f"{self} initialized")
         super().__init__(x, y)
@@ -159,6 +170,10 @@ class Entity(Primitive):
             return "dead"
         elif self.health["real"] > self.health["max"]:
             self.health["real"] = self.health["max"]
+
+    def _dying(self):
+        super()._dying()
+        Entity.memory.remove(self)
 
     def __repr__(self):
         return f"<{self.name}>"
@@ -266,7 +281,6 @@ class Hunter(Entity):
             if settings["drain_health_on_kill"]: self.health["real"] += self.weapon.damage
             self.killed += 1
 
-
     def __attack(self):
         if self.weapon is not None:
             #При первой итерации метода создаем атрибуты для работы это-го дейсвия
@@ -302,7 +316,7 @@ class Hunter(Entity):
                                 if prey.action is not "stun" or prey.weapon is None:
                                     self._hit(prey, self.weapon.damage)
                                 else:
-                                    elf._hit(self.weapon.damage // 2)
+                                    self._hit(prey, self.weapon.damage // 2)
 
                                 if self.vector in (6, 7, 8):
                                     prey.x -= self.weapon.damage * 5
@@ -540,6 +554,7 @@ class Opponent(Hunter):
         random_place = Opponent.spawn_places[random(0, len(Opponent.spawn_places))]
         Opponent(x=random_place[0], y=random_place[1])
 
+DRAW_QUEUE = [Static, Entity, Hud]
 
 if __name__ == '__main__':
     #Создаём прлиложение
@@ -615,21 +630,27 @@ if __name__ == '__main__':
                     [camera_walls["x"][pos_x], camera_walls["y"]["down"]]
                 )
 
-        #Работа с обьектами в хранилище
+
+        #Самоличностные вычисления
         for item in Primitive.memory:
-            #Самоличностные вычисления
             try:
                 item.verification()
-            except Exception as error:
-                Errors.append(error)
+            except AttributeError as error:
+                Errors.append(f"verification: {error}")
 
-            #Рендер
-            if item in Primitive.memory:
-                item.draw()
+        #Рендер
+        for class_ in DRAW_QUEUE:
+            for item in class_.memory:
+                try:
+                    item.draw()
 
-                if debug_mode and item.__class__ in presence_in_inheritance(Entity):
-                    for hitbox in item.hitbox:
-                        pygame.draw.rect(app, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
+                    if debug_mode and item.__class__ in presence_in_inheritance(Entity):
+                        for hitbox in item.hitbox:
+                            pygame.draw.rect(app, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
+                except Exception as error:
+                    Errors.append(f"draw: {error}")
+
+
 
         if exit and time_to_exit:
             if debug_mode: print(f"{round(time_to_exit/FPS, 2)} seconds left until the game closes")
@@ -640,7 +661,7 @@ if __name__ == '__main__':
         pygame.display.update()
 
     if debug_mode:
-        print(f"Primitive.memory: {Primitive.memory}\nHud.memory has {len(Hud.memory)} objects")
-        print("\nEXCLUSION ZONE")
+        print(f"Entity.memory has {len(Entity.memory)} objects: {Entity.memory}\nHud.memory has {len(Hud.memory)} objects: {Hud.memory}\nStatic.memory has {len(Static.memory)} objects: {Static.memory}")
+        print(f"\nEXCLUSION ZONE, {len(Errors)} errors")
         for error in Errors:
             print(error)

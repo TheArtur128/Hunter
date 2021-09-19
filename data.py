@@ -48,7 +48,7 @@ def round(vaule, number_after_point=1):
         return float(str(int(vaule))+ "." + str(vaule).split(".")[1][:number_after_point])
 
 
-def presence_in_inheritance(class_):
+def presence_in_inheritance(class_, atribut=None):
     classes = [class_]
     while True:
         free_classes = False
@@ -59,6 +59,16 @@ def presence_in_inheritance(class_):
                     free_classes = True
 
         if not free_classes:
+            if atribut is not None:
+                clear_classes = []
+                for class_ in classes:
+                    try:
+                        class_.__dict__[atribut]
+                        clear_classes.append(class_)
+                    except KeyError:
+                        pass
+                return clear_classes
+
             return classes
 
 
