@@ -88,25 +88,37 @@ class Score(Text):
 
 
 class Indicator(Hud):
-    def __init__(self, width, master=None, x=0, y=0, height=3, color=color["health_indicator"], movable=True, smoothing=False, eternal=True):
+    def __init__(self, width, master=None, x=0, y=0, height=3, movable=True, smoothing=False, eternal=True):
         super().__init__(x=x, y=y, movable=movable, smoothing=smoothing, master=master, eternal=eternal)
         self.width = width
         self.height = height
-        self.color = color
+        self.color = {
+        "absence_health_line": color["absence_health_line"],
+        "health_line": color["health_line"],
+        "extra_health_line": color["extra_health_line"]
+        }
 
     def draw(self):
-        pygame.draw.rect(app, color["full_health_indicator"], (self.x, self.y-10, self.width, self.height))
+        if self.master.health["real"] > self.master.health["max"] // 2:
+            pygame.draw.rect(app, self.color["health_line"], (self.x, self.y-10, self.width, self.height))
+            line_color = self.color["extra_health_line"]
+            width_index = 1
+        else:
+            pygame.draw.rect(app, self.color["absence_health_line"], (self.x, self.y-10, self.width, self.height))
+            more_overall_health = False
+            line_color = self.color["health_line"]
+            width_index = 0
+
         pygame.draw.rect(
             app,
-            self.color,
+            line_color,
             (self.x,
             self.y-10,
-            int(self.width*(self.master.health["real"]/self.master.health["max"])),
+            int(self.width*(self.master.health["real"]/(self.master.health["max"]//2) - width_index)),
             self.height),
         )
 
 
-#Класс для предметов фона DO TO
 class Static(Primitive):
     memory = []
 
@@ -127,7 +139,7 @@ class Static(Primitive):
         Static.memory.remove(self)
 
     @classmethod
-    def initialize_instances(cls, amount=256, area=[app_win[0]*5, app_win[1]*5]):
+    def initialize_instances(cls, amount=settings["number_of_plants"], area=plays_area):
         for i in range(amount):
             index = {
                 "x": random(-area[0]//2, area[0]//2),
@@ -153,7 +165,7 @@ class Entity(Primitive):
         self.speed = speed
         self.health = {
             "real": health,
-            "max": health
+            "max": health*2
         }
         '''В игре 8 векторов, первый вектор обозначает 90°,
         последующие уменьшены на 45° от предыдущего'''
@@ -164,7 +176,6 @@ class Entity(Primitive):
         app.blit(self.img[str(self.vector)], (self.x, self.y))
 
     def verification(self):
-        #super().verification()
         if self.health["real"] <= 0:
             self._dying()
             return "dead"
@@ -182,6 +193,8 @@ class Entity(Primitive):
 class Weapon(Entity):
     def __init__(self, name, damage=10, health=13, x=0, y=0, vector=1, speed=FPS, master=None):
         super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
+        Entity.memory.remove(self)
+        Entity.memory.insert(0, self)
         self.damage = damage
         #Ссылка на персонажа держущего оружие
         self.master = master
@@ -452,6 +465,7 @@ class Player(Hunter):
     img = get_images("person/blue-circle")
 
     def verification(self):
+        if debug_mode: self.health["real"] += 1
         self._run()
         self.__move_camera()
         super().verification()
@@ -553,6 +567,7 @@ class Opponent(Hunter):
         super()._dying()
         random_place = Opponent.spawn_places[random(0, len(Opponent.spawn_places))]
         Opponent(x=random_place[0], y=random_place[1])
+
 
 DRAW_QUEUE = [Static, Entity, Hud]
 

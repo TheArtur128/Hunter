@@ -1,24 +1,25 @@
 {
   "settings": {
     "window": [640, 430],
-    "factor_of_camera_walls": 2,
+    "number_of_plants": 256,
     "show_damage": true,
     "health_indicator": true,
     "drain_health_on_kill": true,
     "seconds_to_exit": 3,
     "plants": true,
     "score": true,
+    "factor_plays_area": 5,
+    "factor_of_camera_walls": 2,
     "debug_mode": false
   },
 
   "color": {
-    "player": [255, 10, 70],
-    "bot": [255, 10, 70],
     "background": [28, 147, 64],
     "text": [185, 185, 185],
     "show_damage": [255, 12, 0],
-    "health_indicator": [255, 10, 50],
-    "full_health_indicator": [130, 130, 130],
+    "absence_health_line": [155, 155, 155],
+    "health_line": [255, 10, 50],
+    "extra_health_line": [75, 75, 80],
     "debug_mode": [255, 0, 30]
   }
 }
