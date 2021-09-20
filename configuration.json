@@ -9,12 +9,14 @@
     "plants": true,
     "score": true,
     "factor_plays_area": 5,
-    "factor_of_camera_walls": 2,
+    "factor_of_camera_width": 2,
+    "factor_of_camera_height": 2,
     "debug_mode": false
   },
 
   "color": {
     "background": [28, 147, 64],
+    "emptiness_of_map": [55, 55, 55],
     "text": [185, 185, 185],
     "show_damage": [255, 12, 0],
     "absence_health_line": [155, 155, 155],

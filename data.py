@@ -107,14 +107,7 @@ plays_area = [app_win[0]*settings["factor_plays_area"], app_win[1]*settings["fac
 
 tithe_win = [app_win[0]//10, app_win[1]//10]
 
-camera_walls = {
-    "x": {
-        "left": tithe_win[0]*settings["factor_of_camera_walls"],
-        "right": app_win[0] - tithe_win[0]*settings["factor_of_camera_walls"]
-    },
-
-    "y": {
-        "up": tithe_win[1]*settings["factor_of_camera_walls"],
-        "down": app_win[1] - tithe_win[1]*settings["factor_of_camera_walls"]
-    }
+camera_area = {
+    "width": app_win[0] - tithe_win[0]*settings["factor_of_camera_width"]*2,
+    "height": app_win[1] - tithe_win[1]*settings["factor_of_camera_height"]*2
 }
