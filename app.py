@@ -270,6 +270,7 @@ class Entity(Primitive):
         app.blit(self.img[str(self.vector)], (self.x, self.y))
 
     def verification(self):
+        super().verification()
         if self.health["real"] <= 0:
             self._dying()
             return "dead"
@@ -285,58 +286,41 @@ class Entity(Primitive):
 
 
 class Weapon(Entity):
-    def __init__(self, name, damage=10, health=13, x=0, y=0, vector=1, speed=FPS, master=None, discarding_prey=50):
+    def __init__(self, x=0, y=0, vector=1, name=None, damage=None, health=None, speed=None, master=None, discarding_prey=None):
+        if name is None: name = self.__class__.name
+        if health is None: health = self.__class__.health
+        if speed is None: speed = self.__class__.speed
+        if damage is None: self.__class__.damage
+        if discarding_prey is None: self.__class__.discarding_prey
         super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
-        Entity.memory.remove(self)
-        Entity.memory.insert(0, self)
-        self.damage = damage
-        self.discarding_prey = discarding_prey
         self.master = master
-        self.coordinates = self.default_coordinates()
+        self.coordinates_at_vectors = self.default_coordinates_at_vectors()
+        self.buffer_of_vector = 0
 
     def __update_coordinates(self):
         if self.master is not None:
-            try:
-                self.vector = self.master.vector + self.action["vector-buffer"]
-            except AttributeError:
-                self.vector = self.master.vector
-
+            self.vector = self.master.vector + self.buffer_of_vector
             self.vector = check_vector(self.vector)
-            self.x = self.master.x + self.coordinates[self.vector][0]
-            self.y = self.master.y + self.coordinates[self.vector][1]
 
-        if self.health["real"] <= 0:
-            self._dying()
+            self.x = self.master.x + self.coordinates_at_vectors[self.vector][0]
+            self.y = self.master.y + self.coordinates_at_vectors[self.vector][1]
 
     def _dying(self):
         self.master.weapon = None
         super()._dying()
 
-    #test
-    @staticmethod
-    def default_coordinates():
-        return {
-            1: [81, 8],
-            2: [38, 48],
-            3: [-8, 81],
-            4: [-25, 35],
-            5: [-5, 8],
-            6: [-5, -27],
-            7: [8, -5],
-            8: [45, -15]
-            }
-
     def verification(self):
         super().verification()
         self.__update_coordinates()
-        self._install_hitbox()
 
 
 class Katana(Weapon):
-    img = get_images(f"weapon/katana")
-    average_speed = FPS // 10
-    def __init__(self, name="katana", health=20, damage=10, speed=average_speed, x=0, y=0, vector=1, master=None, discarding_prey=50):
-        super().__init__(name, damage=damage, health=health, speed=Katana.average_speed, x=x, y=y, vector=vector, master=master, discarding_prey=discarding_prey)
+    img = generation_forms(get_image(f"weapon/katana.png"))
+    name = "katana"
+    health = 20
+    damage = 10
+    speed = 3
+    discarding_prey = 40
 
     def _install_hitbox(self):
         self.hitbox = []
@@ -353,10 +337,135 @@ class Katana(Weapon):
             for i in range(54):
                 self.hitbox.append([self.x+i, self.y+i])
 
+    @staticmethod
+    def default_coordinates_at_vectors():
+        return {
+            1: [81, 8],
+            2: [38, 48],
+            3: [-8, 81],
+            4: [-25, 35],
+            5: [-5, 8],
+            6: [-5, -27],
+            7: [8, -5],
+            8: [45, -15]
+        }
+
+
+class Mace(Weapon):
+    img = generation_forms(get_image(f"weapon/mace.png"))
+    name = "mace"
+    health = 15
+    damage = 15
+    speed = 4
+    discarding_prey = 75
+
+    def _install_hitbox(self):
+        self.hitbox = []
+        if self.vector in (1, 5):
+            for i in range(87):
+                self.hitbox.append([self.x+10, self.y+i])
+        elif self.vector in (2, 6):
+            for i in range(-11, 49):
+                self.hitbox.append([self.x+20+i, self.y+55-i])
+        elif self.vector in (3, 7):
+            for i in range(87):
+                self.hitbox.append([self.x+i, self.y+10])
+        elif self.vector in (4, 8):
+            for i in range(11, 60):
+                self.hitbox.append([self.x+i, self.y+i])
+
+    @staticmethod
+    def default_coordinates_at_vectors():
+        return {
+            1: [75, 8],
+            2: [25, 45],
+            3: [-8, 75],
+            4: [-35, 30],
+            5: [-15, -8],
+            6: [-20, -40],
+            7: [8, -15],
+            8: [45, -18]
+        }
+
+
+#test
+class Spear(Weapon):
+    img = generation_forms(get_image(f"weapon/spear.png"))
+    name = "spear"
+    health = 25
+    damage = 8
+    speed = 5
+    discarding_prey = 100
+
+    def _install_hitbox(self):
+        self.hitbox = []
+        if self.vector in (1, 5):
+            for i in range(150):
+                self.hitbox.append([self.x+8, self.y+i])
+        elif self.vector in (2, 6):
+            for i in range(0, 105):
+                self.hitbox.append([self.x+8+i, self.y+110-i])
+        elif self.vector in (3, 7):
+            for i in range(150):
+                self.hitbox.append([self.x+i, self.y+8])
+        elif self.vector in (4, 8):
+            for i in range(11, 110):
+                self.hitbox.append([self.x+i, self.y+i])
+
+    @staticmethod
+    def default_coordinates_at_vectors():
+        return {
+            1: [75, 10],
+            2: [-20, 45],
+            3: [-75, 75],
+            4: [-75, -15],
+            5: [-10, -75],
+            6: [-20, -80],
+            7: [8, -10],
+            8: [45, -18]
+        }
+
+
+class Sword(Weapon):
+    img = generation_forms(get_image(f"weapon/sword.png"))
+    name = "sword"
+    health = 30
+    damage = 12
+    speed = 3
+    discarding_prey = 75
+
+    def _install_hitbox(self):
+        self.hitbox = []
+        if self.vector in (1, 5):
+            for i in range(100):
+                self.hitbox.append([self.x+7, self.y+i])
+        elif self.vector in (2, 6):
+            for i in range(5, 76):
+                self.hitbox.append([self.x+i, self.y+80-i])
+        elif self.vector in (3, 7):
+            for i in range(100):
+                self.hitbox.append([self.x+i, self.y+7])
+        elif self.vector in (4, 8):
+            for i in range(5, 76):
+                self.hitbox.append([self.x+i, self.y+i])
+
+    @staticmethod
+    def default_coordinates_at_vectors():
+        return {
+            1: [80, 5],
+            2: [25, 40],
+            3: [-15, 80],
+            4: [-35, 25],
+            5: [-10, -15],
+            6: [-25, -45],
+            7: [5, -10],
+            8: [40, -20]
+        }
+
 
 #Персонажи как класс
 class Hunter(Entity):
-    def __init__(self, name, x, y, health=100, speed=5, vector=1, weapon=Katana):
+    def __init__(self, name, x, y, health=100, speed=5, vector=1, weapon="random"):
         super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
         self.__size = 81
         self.__action = "quiet"
@@ -367,7 +476,9 @@ class Hunter(Entity):
             "up": False,
             "down": False
         }
-        if weapon is not None:
+        if weapon is "random":
+            self.weapon = choice(Weapon.__subclasses__())(master=self)
+        elif weapon is not None:
             self.weapon = weapon(master=self)
         else:
             self.weapon = None
@@ -395,54 +506,52 @@ class Hunter(Entity):
             self.killed += 1
 
     def __attack(self):
-        if self.weapon is not None:
-            #При первой итерации метода создаем атрибуты для работы это-го дейсвия
-            try:
-                self.weapon.action
-            except AttributeError:
-                self.weapon.action = {
-                    "time-indicator": self.weapon.__class__.average_speed,
-                    "vector-buffer": 0, #Складываеться с основным вектором оружия
-                    "iterations-done": 0 #Количество прошедших итераций. Нужно для эмуляции покадрового цикла
-                }
+        for prey in Primitive.memory:
+            if prey is not self and prey.__class__ in presence_in_inheritance(Hunter):
+                for weapon_point in self.weapon.hitbox:
+                    if weapon_point in prey.hitbox:
+                        self.weapon.health["real"] -= 1
+                        self._hit(prey, self.weapon.damage)
 
-            #Уменьшаем счётчик до момента удара
-            self.weapon.action["time-indicator"] -= 1
-            if self.weapon.action["time-indicator"] <= 0:
-                self.weapon.action["time-indicator"] = self.weapon.__class__.average_speed
-                self.weapon.action["iterations-done"] += 1
-                self.weapon.action["vector-buffer"] -= 1
+                        if self.vector in (6, 7, 8):
+                            prey.x -= self.weapon.discarding_prey
+                        if self.vector in (2, 3, 4):
+                            prey.x += self.weapon.discarding_prey
+                        if self.vector in (8, 1, 2):
+                            prey.y -= self.weapon.discarding_prey
+                        if self.vector in (4, 5, 6):
+                            prey.y += self.weapon.discarding_prey
 
-                #Проверяем атакавали-ли и в последствии атакуем
-                for prey in Primitive.memory:
-                    if prey is not self and prey.__class__ in presence_in_inheritance(Hunter):
-                        for weapon_point in self.weapon.hitbox:
-                            if weapon_point in prey.hitbox:
-                                self.weapon.health["real"] -= 1
-                                self._hit(prey, self.weapon.damage)
+                        prey.action = "stun"
+                        break
 
-                                if self.vector in (6, 7, 8):
-                                    prey.x -= self.weapon.discarding_prey
-                                if self.vector in (2, 3, 4):
-                                    prey.x += self.weapon.discarding_prey
-                                if self.vector in (8, 1, 2):
-                                    prey.y -= self.weapon.discarding_prey
-                                if self.vector in (4, 5, 6):
-                                    prey.y += self.weapon.discarding_prey
+    def __chop(self):
+        #При первой итерации метода создаем атрибуты для работы это-го дейсвия
+        try:
+            self.weapon.action
+        except AttributeError:
+            self.weapon.action = {
+                "time-indicator": self.weapon.__class__.speed,
+                "iterations-done": 0 #Количество прошедших итераций. Нужно для эмуляции покадрового цикла
+            }
 
-                                prey.action = "stun"
-                                break
+        #Уменьшаем счётчик до момента удара
+        self.weapon.action["time-indicator"] -= 1
+        if self.weapon.action["time-indicator"] <= 0:
+            self.weapon.action["time-indicator"] = self.weapon.__class__.speed
+            self.weapon.action["iterations-done"] += 1
+            self.weapon.buffer_of_vector -= 1
 
-                #Завершаем удар
-                if self.weapon.action["iterations-done"] >= 4:
-                    self.action = "quiet"
-                    self.weapon.coordinates = self.weapon.default_coordinates()
-                    del self.weapon.action
+            self.__attack()
 
-            self.weapon.vector = check_vector(self.weapon.vector)
+            #Завершаем удар
+            if self.weapon.action["iterations-done"] >= 4:
+                self.action = "quiet"
+                self.weapon.coordinates = self.weapon.default_coordinates_at_vectors()
+                self.weapon.buffer_of_vector = 0
+                del self.weapon.action
 
-        else:
-            self.action = "quiet"
+        self.weapon.vector = check_vector(self.weapon.vector)
 
     def __stun(self):
         try:
@@ -452,14 +561,12 @@ class Hunter(Entity):
                 "stun-time": FPS
             }
             if self.weapon is not None:
-                self.weapon.action = {
-                    "vector-buffer": -2
-                }
+                self.weapon.buffer_of_vector = -2
 
         self.stun_attribute["stun-time"] -= 1
         if self.stun_attribute["stun-time"] <= 0:
             del self.stun_attribute
-            if self.weapon is not None: del self.weapon.action
+            if self.weapon is not None: self.weapon.buffer_of_vector = 0
             self.__action = "quiet"
 
     def _run(self):
@@ -529,10 +636,15 @@ class Hunter(Entity):
             vec = pygame.math.Vector2(0, -40).rotate(i)
             self.hitbox.append([int(self.x+self.size//2+vec.x), int(self.y+self.size//2+vec.y)])
 
+        start_inside_line = self.hitbox[-45]
+        for i in range(int(self.size*0.73)):
+            self.hitbox.append([start_inside_line[0]+i, start_inside_line[1]+i])
+
     def verification(self):
         super().verification()
-        if self.action == "attack": self.__attack()
-        elif self.action == "stun": self.__stun()
+        if self.weapon is not None:
+            if self.action == "chop": self.__chop()
+        if self.action == "stun": self.__stun()
         self._run()
         self._install_hitbox()
 
@@ -556,7 +668,7 @@ class Hunter(Entity):
 
 #Одноэкземплярный класс
 class Player(Hunter):
-    img = get_images("person/blue-circle")
+    img = complement_forms(get_images("person/blue-circle"))
 
     def verification(self):
         super().verification()
@@ -584,13 +696,13 @@ class Player(Hunter):
 
 
 class Opponent(Hunter):
-    img = get_images("person/red-circle")
+    img = complement_forms(get_images("person/red-circle"))
     waiting_attack = FPS // 2
     sum_all = 0
     spawn_places = [[x, y] for x in range(-81, app_win[0]) for y in [-81, app_win[1]]]
     spawn_places.extend([[x, y] for x in [-81, app_win[0]] for y in range(-81, app_win[0])])
 
-    def __init__(self, x, y, name=None, health=100, speed=5, vector=1, weapon=Katana):
+    def __init__(self, x, y, name=None, health=100, speed=5, vector=1, weapon="random"):
         Opponent.sum_all += 1
         if name is None: name = f"Opponent {Opponent.sum_all}"
         super().__init__(name=name, x=x, y=y, health=health, speed=speed, vector=vector, weapon=weapon)
@@ -614,7 +726,7 @@ class Opponent(Hunter):
 
                     self.waiting_attack -= 1
                     if self.waiting_attack <= 0:
-                        self.action = "attack"
+                        self.action = "chop"
                         self.waiting_attack = self.__class__.waiting_attack
                     break
 
@@ -667,7 +779,7 @@ if __name__ == '__main__':
     if settings["score"]: Hero.score = Score(x=20, y=30, text="", movable=False, eternal=True, frames_to_death=time_to_exit, master=Hero)
     if settings["plants"]: Plants.initialize_instances()
     Opponent(525, 325)
-    Katana("Excalibur", x=200, y=180, health=15, damage=20)
+    Sword(name="Excalibur", x=200, y=180)
 
     if debug_mode: print(f"Entity.memory has {len(Entity.memory)} objects: {Entity.memory}\nHud.memory has {len(Hud.memory)} objects: {Hud.memory}\nStatic.memory has {len(Static.memory)} objects: {Static.memory}\n")
 
@@ -682,11 +794,11 @@ if __name__ == '__main__':
             if Hero in Primitive.memory:
                 if action.type == pygame.MOUSEBUTTONDOWN:
                     if action.button == 1:
-                        Hero.action = "attack"
+                        Hero.action = "chop"
 
                 if action.type == pygame.KEYDOWN:
                     if action.key == pygame.K_x:
-                        Hero.action = "attack"
+                        Hero.action = "chop"
 
                     if action.key in key["moving player"]["LEFT"]:
                         Hero.movement["left"] = True

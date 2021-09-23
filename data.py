@@ -2,6 +2,7 @@ import json
 import os
 
 import pygame
+from random import choice
 from random import randint as random
 
 pygame.init()
@@ -9,21 +10,39 @@ pygame.init()
 folder_root = os.path.dirname(os.path.abspath(__file__))
 
 
-#Парсим все файлы из папки в словарь под их имена
-def get_images(directory):
-    directory = f"{folder_root}/material/" + directory
+def get_image(directory):
+    file = pygame.image.load(f"{folder_root}/material/{directory}")
+    file.set_colorkey((255, 255, 255))
+    return file
+
+
+#Парсит все в словарь
+def get_images(original_directory):
+    directory = f"{folder_root}/material/{original_directory}"
     with os.scandir(directory) as listOfEntries:
         files = {}
         for entry in listOfEntries:
             if entry.is_file():
-                file = pygame.image.load(f"{directory}/{entry.name}")
-                file.set_colorkey((255, 255, 255))
+                files[entry.name.split(".")[0]] = get_image(f"{original_directory}/{entry.name}")
 
-                files[entry.name.split(".")[0]] = file
-
-        if len(files) == 1:
-            files = files[list(files.keys())[0]]
         return files
+
+
+def generation_forms(surface):
+    surfaces = {}
+    for i in range(8):
+        surfaces[str(i+1)] = pygame.transform.rotate(surface, -45*i)
+
+    return surfaces
+
+
+def complement_forms(surfaces):
+    surfaces["4"] = pygame.transform.flip(surfaces["2"], False, True)
+    surfaces["5"] = pygame.transform.flip(surfaces["1"], True, True)
+    surfaces["6"] = pygame.transform.flip(surfaces["2"], True, True)
+    surfaces["7"] = pygame.transform.flip(surfaces["3"], True, True)
+    surfaces["8"] = pygame.transform.flip(surfaces["2"], True, False)
+    return surfaces
 
 
 #Возврощает рандомный знак
