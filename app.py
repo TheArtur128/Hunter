@@ -2,6 +2,7 @@ from data import *
 
 Errors = []
 
+
 #Суперкласс всего что может вычесляться и отрисосвываться Pygame'ом
 class Primitive:
     #Хранилище всех экземпляров для их вычислений
@@ -101,7 +102,6 @@ class GameZone(Wall):
     def _working_with_objects_outside_of_self(self):
         for item in Entity.memory:
             all_coordinates = item.get_hitbox_by_coordinates()
-
             if min(all_coordinates["x"]) < self.x:
                 item.x += self.x - min(all_coordinates["x"])
 
@@ -265,17 +265,22 @@ class Entity(Primitive):
         последующие уменьшены на 45° от предыдущего'''
         self.vector = vector
         self.img = self.__class__.img
+        self.update_size()
 
     def draw(self):
         app.blit(self.img[str(self.vector)], (self.x, self.y))
 
     def verification(self):
+        self.update_size()
         super().verification()
         if self.health["real"] <= 0:
             self._dying()
             return "dead"
         elif self.health["real"] > self.health["max"]:
             self.health["real"] = self.health["max"]
+
+    def update_size(self):
+        self.size = self.img[str(self.vector)].get_rect().size
 
     def _dying(self):
         super()._dying()
@@ -294,7 +299,7 @@ class Weapon(Entity):
         if discarding_prey is None: self.__class__.discarding_prey
         super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
         self.master = master
-        self.coordinates_at_vectors = self.default_coordinates_at_vectors()
+        self.coordinates_at_vectors = None
         self.buffer_of_vector = 0
 
     def __update_coordinates(self):
@@ -302,11 +307,28 @@ class Weapon(Entity):
             self.vector = self.master.vector + self.buffer_of_vector
             self.vector = check_vector(self.vector)
 
-            self.x = self.master.x + self.coordinates_at_vectors[self.vector][0]
-            self.y = self.master.y + self.coordinates_at_vectors[self.vector][1]
+            self.x = self.master.x + self.master.weapon_coordinates()[self.vector][0]
+            self.y = self.master.y + self.master.weapon_coordinates()[self.vector][1]
+
+    def _install_hitbox(self):
+        self.hitbox = []
+        if self.vector in (1, 5):
+            for i in range(self.size[1]):
+                self.hitbox.append([self.x+self.size[0]//2, self.y+i])
+        elif self.vector in (2, 6):
+            for i in range(self.size[1]):
+                self.hitbox.append([self.x+i, self.y+self.size[1]-i])
+        elif self.vector in (3, 7):
+            for i in range(self.size[0]):
+                self.hitbox.append([self.x+i, self.y+self.size[1]//2])
+        elif self.vector in (4, 8):
+            for i in range(self.size[1]):
+                self.hitbox.append([self.x+i, self.y+i])
 
     def _dying(self):
-        self.master.weapon = None
+        if self.master is not None:
+            self.master.inventory.remove(self)
+            self.master.weapon = None
         super()._dying()
 
     def verification(self):
@@ -322,34 +344,6 @@ class Katana(Weapon):
     speed = 3
     discarding_prey = 40
 
-    def _install_hitbox(self):
-        self.hitbox = []
-        if self.vector in (1, 5):
-            for i in range(75):
-                self.hitbox.append([self.x+2, self.y+i])
-        elif self.vector in (2, 6):
-            for i in range(54):
-                self.hitbox.append([self.x+i, self.y+54-i])
-        elif self.vector in (3, 7):
-            for i in range(75):
-                self.hitbox.append([self.x+i, self.y+2])
-        elif self.vector in (4, 8):
-            for i in range(54):
-                self.hitbox.append([self.x+i, self.y+i])
-
-    @staticmethod
-    def default_coordinates_at_vectors():
-        return {
-            1: [81, 8],
-            2: [38, 48],
-            3: [-8, 81],
-            4: [-25, 35],
-            5: [-5, 8],
-            6: [-5, -27],
-            7: [8, -5],
-            8: [45, -15]
-        }
-
 
 class Mace(Weapon):
     img = generation_forms(get_image(f"weapon/mace.png"))
@@ -359,71 +353,14 @@ class Mace(Weapon):
     speed = 4
     discarding_prey = 75
 
-    def _install_hitbox(self):
-        self.hitbox = []
-        if self.vector in (1, 5):
-            for i in range(87):
-                self.hitbox.append([self.x+10, self.y+i])
-        elif self.vector in (2, 6):
-            for i in range(-11, 49):
-                self.hitbox.append([self.x+20+i, self.y+55-i])
-        elif self.vector in (3, 7):
-            for i in range(87):
-                self.hitbox.append([self.x+i, self.y+10])
-        elif self.vector in (4, 8):
-            for i in range(11, 60):
-                self.hitbox.append([self.x+i, self.y+i])
 
-    @staticmethod
-    def default_coordinates_at_vectors():
-        return {
-            1: [75, 8],
-            2: [25, 45],
-            3: [-8, 75],
-            4: [-35, 30],
-            5: [-15, -8],
-            6: [-20, -40],
-            7: [8, -15],
-            8: [45, -18]
-        }
-
-
-#test
-class Spear(Weapon):
-    img = generation_forms(get_image(f"weapon/spear.png"))
-    name = "spear"
-    health = 25
-    damage = 8
-    speed = 5
+class Hammer(Weapon):
+    img = generation_forms(get_image(f"weapon/hammer.png"))
+    name = "hammer"
+    health = 20
+    damage = 20
+    speed = 4
     discarding_prey = 100
-
-    def _install_hitbox(self):
-        self.hitbox = []
-        if self.vector in (1, 5):
-            for i in range(150):
-                self.hitbox.append([self.x+8, self.y+i])
-        elif self.vector in (2, 6):
-            for i in range(0, 105):
-                self.hitbox.append([self.x+8+i, self.y+110-i])
-        elif self.vector in (3, 7):
-            for i in range(150):
-                self.hitbox.append([self.x+i, self.y+8])
-        elif self.vector in (4, 8):
-            for i in range(11, 110):
-                self.hitbox.append([self.x+i, self.y+i])
-
-    @staticmethod
-    def default_coordinates_at_vectors():
-        return {
-            1: [75, 10],
-            2: [-20, 45],
-            3: [-75, 75],
-            4: [-75, -15],
-            5: [-10, -75],
-            6: [-20, -80],
-            7: [8, -10],
-            8: [45, -18]
-        }
 
 
 class Sword(Weapon):
@@ -434,40 +371,11 @@ class Sword(Weapon):
     speed = 3
     discarding_prey = 75
 
-    def _install_hitbox(self):
-        self.hitbox = []
-        if self.vector in (1, 5):
-            for i in range(100):
-                self.hitbox.append([self.x+7, self.y+i])
-        elif self.vector in (2, 6):
-            for i in range(5, 76):
-                self.hitbox.append([self.x+i, self.y+80-i])
-        elif self.vector in (3, 7):
-            for i in range(100):
-                self.hitbox.append([self.x+i, self.y+7])
-        elif self.vector in (4, 8):
-            for i in range(5, 76):
-                self.hitbox.append([self.x+i, self.y+i])
-
-    @staticmethod
-    def default_coordinates_at_vectors():
-        return {
-            1: [80, 5],
-            2: [25, 40],
-            3: [-15, 80],
-            4: [-35, 25],
-            5: [-10, -15],
-            6: [-25, -45],
-            7: [5, -10],
-            8: [40, -20]
-        }
-
 
 #Персонажи как класс
 class Hunter(Entity):
     def __init__(self, name, x, y, health=100, speed=5, vector=1, weapon="random"):
         super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
-        self.__size = 81
         self.__action = "quiet"
         self.killed = 0
         self.movement = {
@@ -476,26 +384,25 @@ class Hunter(Entity):
             "up": False,
             "down": False
         }
-        if weapon is "random":
-            self.weapon = choice(Weapon.__subclasses__())(master=self)
-        elif weapon is not None:
-            self.weapon = weapon(master=self)
-        else:
-            self.weapon = None
+        self.inventory = []
+        if weapon is "random": self.weapon = choice(Weapon.__subclasses__())(master=self)
+        elif weapon is not None: self.weapon = weapon(master=self)
+        else: self.weapon = None
 
-        if settings["health_indicator"]:
-            self.indicator = Indicator(width=self.__size, x=self.x, y=self.y, master=self)
-        else:
-            self.indicator = None
+        if self.weapon is not None:
+            self.inventory.append(self.weapon)
+
+        if settings["health_indicator"]: self.indicator = Indicator(width=self.size[0], x=self.x, y=self.y, master=self)
+        else: self.indicator = None
 
     def _taking_damage(self, damage):
         if self.action is not "stun" or self.weapon is None:
             self.health["real"] -= damage
-            if settings["show_damage"]: Text(text=str(damage), x=self.x+self.size//2, y=self.y+self.size//2, color=color["show_damage"])
+            if settings["show_damage"]: Text(text=str(damage), x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["show_damage"])
             if debug_mode: print(f"{self} suffered damage equal to {damage}, {self} have {self.health['real']}")
         else:
             self.health["real"] -= damage // 2
-            if settings["show_damage"]: Text(text=str(damage//2), x=self.x+self.size//2, y=self.y+self.size//2, color=color["show_damage"])
+            if settings["show_damage"]: Text(text=str(damage//2), x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["show_damage"])
             if debug_mode: print(f"{self} suffered damage equal to {damage//2}, {self} have {self.health['real']}, {self} protected itself")
 
     def _hit(self, prey, damage):
@@ -547,7 +454,6 @@ class Hunter(Entity):
             #Завершаем удар
             if self.weapon.action["iterations-done"] >= 4:
                 self.action = "quiet"
-                self.weapon.coordinates = self.weapon.default_coordinates_at_vectors()
                 self.weapon.buffer_of_vector = 0
                 del self.weapon.action
 
@@ -634,11 +540,11 @@ class Hunter(Entity):
         self.hitbox = []
         for i in range(360):
             vec = pygame.math.Vector2(0, -40).rotate(i)
-            self.hitbox.append([int(self.x+self.size//2+vec.x), int(self.y+self.size//2+vec.y)])
+            self.hitbox.append([int(self.x+self.size[0]//2+vec.x), int(self.y+self.size[0]//2+vec.y)])
 
-        start_inside_line = self.hitbox[-45]
-        for i in range(int(self.size*0.73)):
-            self.hitbox.append([start_inside_line[0]+i, start_inside_line[1]+i])
+        for i in range(self.size[0]):
+            self.hitbox.append([self.x+i, self.y+self.size[1]//2])
+            self.hitbox.append([self.x+self.size[0]//2, self.y+i])
 
     def verification(self):
         super().verification()
@@ -655,8 +561,18 @@ class Hunter(Entity):
             self.indicator._dying()
         super()._dying()
 
-    @property
-    def size(self): return self.__size
+    def weapon_coordinates(self):
+        self.weapon.update_size()
+        return {
+            1: [self.size[0], 0],
+            2: [self.size[0]*1.5-self.weapon.size[0], self.size[1]//2],
+            3: [self.size[0]-self.weapon.size[0], self.size[1]],
+            4: [self.size[0]//2-self.weapon.size[0], self.size[1]*1.5-self.weapon.size[1]],
+            5: [-self.weapon.size[0], self.size[1]-self.weapon.size[1]],
+            6: [-self.size[0]//2, self.size[1]//2-self.weapon.size[1]],
+            7: [0, -self.weapon.size[1]],
+            8: [self.size[0]//2, -self.size[1]//2]
+        }
 
     @property
     def action(self): return self.__action
@@ -672,21 +588,43 @@ class Player(Hunter):
 
     def verification(self):
         super().verification()
-        if self.weapon is None:
-            self._pick_up_weapons()
+        self._pick_up_items()
+        if self.action is "weapon-change" or self.weapon is None:
+            self.weapon_change()
 
-    def _pick_up_weapons(self, weapon=None):
-        if weapon is None:
-            for item in Primitive.memory:
-                if item.__class__ in presence_in_inheritance(Weapon):
-                    if item.master is None:
-                        for hitbox_point in item.hitbox:
-                            if hitbox_point in self.hitbox:
-                                self.weapon = item
-                                item.master = self
-                                return None
+    def _pick_up_items(self, weapon=None):
+        for item in Primitive.memory:
+            if item.__class__ in presence_in_inheritance(Weapon):
+                if item.master is None:
+                    for hitbox_point in item.hitbox:
+                        if hitbox_point in self.hitbox:
+                            if debug_mode: print(f"{self} got {item}")
+                            self.inventory.append(item)
+                            Primitive.memory.remove(item)
+                            Entity.memory.remove(item)
+                            break
+
+    def weapon_change(self):
+        if self.weapon is not None:
+            if self.inventory.index(self.weapon) == len(self.inventory)-1:
+                new_weapon = self.inventory[0]
+            else:
+                new_weapon = self.inventory[self.inventory.index(self.weapon)+1]
+            if debug_mode: print(f"{self} put the {new_weapon} into service")
+            Primitive.memory.remove(self.weapon)
+            Entity.memory.remove(self.weapon)
+            new_weapon.buffer_of_vector = 0
+            self.weapon = new_weapon
+            self.weapon.master = self
+            Primitive.memory.append(self.weapon)
+            Entity.memory.append(self.weapon)
         else:
-            self.weapon = weapon
+            if len(self.inventory) > 0:
+                self.weapon = self.inventory[0]
+                self.weapon.master = self
+                Primitive.memory.append(self.inventory[0])
+                Entity.memory.append(self.inventory[0])
+        self.action = "quiet"
 
     def _dying(self):
         super()._dying()
@@ -763,6 +701,10 @@ if __name__ == '__main__':
     pygame.mixer.music.set_volume(0.5)
     clock = pygame.time.Clock()
 
+    veil = pygame.Surface(app_win)
+    veil.set_alpha(132)
+    veil.fill((255, 255, 255))
+
     GameZone(x=-plays_area[0]//2, y=-plays_area[1]//2, width=plays_area[0], height=plays_area[1])
 
     #Сущность которой мы можем управлять
@@ -774,12 +716,15 @@ if __name__ == '__main__':
         height=camera_area["height"],
         master=Hero
     )
+    if settings["score"]: Hero.score = Score(x=20, y=30, text="", movable=False, eternal=True, frames_to_death=time_to_exit, master=Hero)
 
     #Тестовые сущности
-    if settings["score"]: Hero.score = Score(x=20, y=30, text="", movable=False, eternal=True, frames_to_death=time_to_exit, master=Hero)
     if settings["plants"]: Plants.initialize_instances()
     Opponent(525, 325)
     Sword(name="Excalibur", x=200, y=180)
+    Katana(name="Forest", x=150, y=180)
+    Mace(name="Imperor", x=100, y=180)
+    Hammer(name="Killer", x=50, y=180)
 
     if debug_mode: print(f"Entity.memory has {len(Entity.memory)} objects: {Entity.memory}\nHud.memory has {len(Hud.memory)} objects: {Hud.memory}\nStatic.memory has {len(Static.memory)} objects: {Static.memory}\n")
 
@@ -797,40 +742,49 @@ if __name__ == '__main__':
                         Hero.action = "chop"
 
                 if action.type == pygame.KEYDOWN:
-                    if action.key == pygame.K_x:
+                    if action.key is pygame.K_SPACE:
                         Hero.action = "chop"
 
-                    if action.key in key["moving player"]["LEFT"]:
+                    if action.key is pygame.K_BACKQUOTE:
+                        if time: time = False
+                        else: time = True
+
+                    #test
+                    if action.key in key["player"]["WEAPON_CHANGE"] and time:
+                        Hero.weapon_change()
+
+                    if action.key in key["player"]["LEFT"]:
                         Hero.movement["left"] = True
-                    if action.key in key["moving player"]["RIGHT"]:
+                    if action.key in key["player"]["RIGHT"]:
                         Hero.movement["right"] = True
 
-                    if action.key in key["moving player"]["UP"]:
+                    if action.key in key["player"]["UP"]:
                         Hero.movement["up"] = True
-                    if action.key in key["moving player"]["DOWN"]:
+                    if action.key in key["player"]["DOWN"]:
                         Hero.movement["down"] = True
 
                 if action.type == pygame.KEYUP:
-                    if action.key in key["moving player"]["LEFT"]:
+                    if action.key in key["player"]["LEFT"]:
                         Hero.movement["left"] = False
-                    if action.key in key["moving player"]["RIGHT"]:
+                    if action.key in key["player"]["RIGHT"]:
                         Hero.movement["right"] = False
 
-                    if action.key in key["moving player"]["UP"]:
+                    if action.key in key["player"]["UP"]:
                         Hero.movement["up"] = False
-                    if action.key in key["moving player"]["DOWN"]:
+                    if action.key in key["player"]["DOWN"]:
                         Hero.movement["down"] = False
 
         app.fill((color["emptiness_of_map"]))
 
         #Самоличностные вычисления
         for item in Primitive.memory:
-            try:
-                item.verification()
-            except Exception as error:
-                if debug_mode:
-                    try: Errors.append(f"from verification, {item}: {type(error)} {error}")
-                    except AttributeError: Errors.append(f"from verification: {type(error)} {error}")
+            if time:
+                try:
+                    item.verification()
+                except Exception as error:
+                    if debug_mode and not exit:
+                        try: Errors.append(f"from verification, {item}: {type(error)} {error}")
+                        except AttributeError: Errors.append(f"from verification: {type(error)} {error}")
 
         #Рендер
         for class_ in DRAW_QUEUE:
@@ -841,9 +795,12 @@ if __name__ == '__main__':
                         for hitbox in item.hitbox:
                             pygame.draw.rect(app, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
                 except Exception as error:
-                    if debug_mode:
+                    if debug_mode and not exit:
                         try: Errors.append(f"from draw, {item}: {type(error)} {error}")
                         except AttributeError: Errors.append(f"from draw: {type(error)} {error}")
+
+        if not time:
+            app.blit(veil, (0, 0))
 
         if exit and time_to_exit:
             if debug_mode: print(f"{round(time_to_exit/FPS, 2)} seconds left until the game closes")

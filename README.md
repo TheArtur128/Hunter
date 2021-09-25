@@ -10,8 +10,10 @@
   * [Random](https://pypi.org/project/random2/)
 
  ## Control:
- * **Left Mouse Button** and **X** is **Attack**
- * **Left arrow** and **A** is **Move Left**
- * **Right arrow** and **D** is **Move Right**
- * **Up arrow** and **W** is **Move Up**
- * **Down arrow** and **S** is **Move Down**
+ * *Left Mouse Button* and *Space* is *Attack*
+ * *Left arrow* and *A* is *Move Left*
+ * *Right arrow* and *D* is *Move Right*
+ * *Up arrow* and *W* is *Move Up*
+ * *Down arrow* and *S* is *Move Down*
+ * *Tab* and *Alt* is *Weapon change*
+ * *Backquote* is *Pause*

@@ -97,11 +97,12 @@ icon = pygame.image.load(f"{folder_root}\material\general\graphix\icon.ico")
 
 #Группы кнопок которые в контесте приводят к одному результату
 key = {
-    "moving player": {
+    "player": {
         "LEFT": [pygame.K_LEFT, pygame.K_a],
         "RIGHT": [pygame.K_RIGHT, pygame.K_d],
         "UP": [pygame.K_UP, pygame.K_w],
-        "DOWN": [pygame.K_DOWN, pygame.K_s]
+        "DOWN": [pygame.K_DOWN, pygame.K_s],
+        "WEAPON_CHANGE": [pygame.K_TAB, pygame.K_RALT, pygame.K_LALT]
     }
 }
 
@@ -112,11 +113,12 @@ with open(f"{folder_root}/configuration.json", "r") as file:
 
 #Глобальные состояния
 game = True
+time = True
 exit = False
 debug_mode = settings["debug_mode"]
 
-
 FPS = 30
+
 
 time_to_exit = FPS * settings["seconds_to_exit"]
 
