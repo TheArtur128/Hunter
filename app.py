@@ -1,9 +1,7 @@
 from data import *
 
-Errors = []
 
-
-#Суперкласс всего что может вычесляться и отрисосвываться Pygame'ом
+#Суперкласс всего что может вычесляться
 class Primitive:
     #Хранилище всех экземпляров для их вычислений
     memory = []
@@ -97,8 +95,8 @@ class Camera(Wall):
             pass
 
 
+#Имеет стены по краяем зоны которые токлают обьект обратно в зону при выхода из нее
 class GameZone(Wall):
-    #В случии это-го класса сдвигает все предметы если вышли за плошять экземпляра
     def _working_with_objects_outside_of_self(self):
         for item in Entity.memory:
             all_coordinates = item.get_hitbox_by_coordinates()
@@ -107,7 +105,6 @@ class GameZone(Wall):
 
             elif max(all_coordinates["x"]) > self.x+self.width:
                 item.x += self.x+self.width - max(all_coordinates["x"])
-
 
             if min(all_coordinates["y"]) < self.y:
                 item.y += self.y - min(all_coordinates["y"])
@@ -158,9 +155,9 @@ class Hud(Primitive):
 
 
 class Text(Hud):
-    font_way = f"{folder_root}/material/general/fonts/Urbanist-Regular.ttf"
+    font_way = f"{folder_root}/material/general/fonts/{settings['font']}"
 
-    def __init__(self, text, x=0, y=0, color=color["text"], frames_to_death=FPS, movable=True, smoothing=False, eternal=False, size=22, master=None):
+    def __init__(self, text, x=0, y=0, color=color["text"], frames_to_death=FPS, movable=True, smoothing=True, eternal=False, size=21, master=None):
         super().__init__(x=x, y=y, frames_to_death=frames_to_death, movable=movable, smoothing=smoothing, eternal=eternal, master=master)
         self.text = text
         self.size = size
@@ -181,15 +178,28 @@ class Score(Text):
         super().verification()
 
 
+class SelectedWeaponsIndex(Text):
+    def verification(self):
+        if self.master.weapon is not None:
+            weapon_index = self.master.inventory.index(self.master.weapon) + 1
+            weapon_name = self.master.weapon.name
+        else:
+            weapon_index = None
+            weapon_name = ""
+
+        self.text = f"{weapon_index}/{len(self.master.inventory)}: {weapon_name}"
+        super().verification()
+
+
 class Indicator(Hud):
     def __init__(self, width, master=None, x=0, y=0, height=3, movable=True, smoothing=False, eternal=True):
         super().__init__(x=x, y=y, movable=movable, smoothing=smoothing, master=master, eternal=eternal)
         self.width = width
         self.height = height
         self.color = {
-        "absence_health_line": color["absence_health_line"],
-        "health_line": color["health_line"],
-        "extra_health_line": color["extra_health_line"]
+            "absence_health_line": color["absence_health_line"],
+            "health_line": color["health_line"],
+            "extra_health_line": color["extra_health_line"]
         }
 
     def draw(self):
@@ -251,7 +261,7 @@ class Plants(Static):
 class Entity(Primitive):
     memory = []
 
-    def __init__(self, name, x, y, speed, vector, health=100):
+    def __init__(self, name, x, y, speed, vector, health, img=None):
         Entity.memory.append(self)
         self.name = name
         if debug_mode: print(f"{self} initialized")
@@ -264,7 +274,8 @@ class Entity(Primitive):
         '''В игре 8 векторов, первый вектор обозначает 90°,
         последующие уменьшены на 45° от предыдущего'''
         self.vector = vector
-        self.img = self.__class__.img
+        if img is None: self.img = self.__class__.img
+        else: self.img = img
         self.update_size()
 
     def draw(self):
@@ -280,7 +291,7 @@ class Entity(Primitive):
             self.health["real"] = self.health["max"]
 
     def update_size(self):
-        self.size = self.img[str(self.vector)].get_rect().size
+        self.__size = self.img[str(self.vector)].get_rect().size
 
     def _dying(self):
         super()._dying()
@@ -289,15 +300,21 @@ class Entity(Primitive):
     def __repr__(self):
         return f"<{self.name}>"
 
+    @property
+    def size(self): return self.__size
 
+
+#DO TO
 class Weapon(Entity):
-    def __init__(self, x=0, y=0, vector=1, name=None, damage=None, health=None, speed=None, master=None, discarding_prey=None):
+    def __init__(self, master=None, x=0, y=0, vector=1, name=None, damage=None, health=None, speed=None, discarding_prey=None, img=None):
+        #При отсутсвии значений ставим среднее по классу либо делать уникальным
         if name is None: name = self.__class__.name
         if health is None: health = self.__class__.health
         if speed is None: speed = self.__class__.speed
         if damage is None: self.__class__.damage
-        if discarding_prey is None: self.__class__.discarding_prey
-        super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
+        if discarding_prey is None:  self.__class__.discarding_prey
+
+        super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed, img=img)
         self.master = master
         self.coordinates_at_vectors = None
         self.buffer_of_vector = 0
@@ -338,8 +355,8 @@ class Weapon(Entity):
 
 class Katana(Weapon):
     img = generation_forms(get_image(f"weapon/katana.png"))
-    name = "katana"
-    health = 20
+    name = "Katana"
+    health = 12
     damage = 10
     speed = 3
     discarding_prey = 40
@@ -347,8 +364,8 @@ class Katana(Weapon):
 
 class Mace(Weapon):
     img = generation_forms(get_image(f"weapon/mace.png"))
-    name = "mace"
-    health = 15
+    name = "Mace"
+    health = 10
     damage = 15
     speed = 4
     discarding_prey = 75
@@ -356,8 +373,8 @@ class Mace(Weapon):
 
 class Hammer(Weapon):
     img = generation_forms(get_image(f"weapon/hammer.png"))
-    name = "hammer"
-    health = 20
+    name = "Hammer"
+    health = 7
     damage = 20
     speed = 4
     discarding_prey = 100
@@ -365,8 +382,8 @@ class Hammer(Weapon):
 
 class Sword(Weapon):
     img = generation_forms(get_image(f"weapon/sword.png"))
-    name = "sword"
-    health = 30
+    name = "Sword"
+    health = 11
     damage = 12
     speed = 3
     discarding_prey = 75
@@ -374,8 +391,8 @@ class Sword(Weapon):
 
 #Персонажи как класс
 class Hunter(Entity):
-    def __init__(self, name, x, y, health=100, speed=5, vector=1, weapon="random"):
-        super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed)
+    def __init__(self, name, x, y, health=100, speed=5, vector=1, weapon="random", img=None):
+        super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed, img=None)
         self.__action = "quiet"
         self.killed = 0
         self.movement = {
@@ -385,18 +402,16 @@ class Hunter(Entity):
             "down": False
         }
         self.inventory = []
-        if weapon is "random": self.weapon = choice(Weapon.__subclasses__())(master=self)
-        elif weapon is not None: self.weapon = weapon(master=self)
-        else: self.weapon = None
+        if weapon == "random": self.weapon = choice(Weapon.__subclasses__())(master=self)
+        else: self.weapon = weapon
 
-        if self.weapon is not None:
-            self.inventory.append(self.weapon)
+        if self.weapon is not None: self.inventory.append(self.weapon)
 
         if settings["health_indicator"]: self.indicator = Indicator(width=self.size[0], x=self.x, y=self.y, master=self)
         else: self.indicator = None
 
     def _taking_damage(self, damage):
-        if self.action is not "stun" or self.weapon is None:
+        if self.action != "stun" or self.weapon is None:
             self.health["real"] -= damage
             if settings["show_damage"]: Text(text=str(damage), x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["show_damage"])
             if debug_mode: print(f"{self} suffered damage equal to {damage}, {self} have {self.health['real']}")
@@ -405,11 +420,17 @@ class Hunter(Entity):
             if settings["show_damage"]: Text(text=str(damage//2), x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["show_damage"])
             if debug_mode: print(f"{self} suffered damage equal to {damage//2}, {self} have {self.health['real']}, {self} protected itself")
 
+        if self.health["real"] <= 0:
+            return "died"
+        else:
+            return "alive"
+
     def _hit(self, prey, damage):
         if debug_mode: print(f"{self} hit {prey}!")
-        prey._taking_damage(self.weapon.damage)
-        if prey.health["real"] <= 0:
-            if settings["drain_health_on_kill"]: self.health["real"] += self.weapon.damage
+        if prey._taking_damage(self.weapon.damage) == "died":
+            if settings["drain_health_on_kill"]:
+                if debug_mode: print(f"{self} got {prey.health['max']//10} hp from the {prey}")
+                self.health["real"] += prey.health["max"]//10
             self.killed += 1
 
     def __attack(self):
@@ -546,11 +567,50 @@ class Hunter(Entity):
             self.hitbox.append([self.x+i, self.y+self.size[1]//2])
             self.hitbox.append([self.x+self.size[0]//2, self.y+i])
 
+    def _pick_up_items(self):
+        for item in Primitive.memory:
+            if item.__class__ in presence_in_inheritance(Weapon):
+                if item.master is None:
+                    for hitbox_point in item.hitbox:
+                        if hitbox_point in self.hitbox:
+                            if debug_mode: print(f"{self} got {item}")
+                            self.inventory.append(item)
+                            Primitive.memory.remove(item)
+                            Entity.memory.remove(item)
+                            break
+
+    def weapon_change(self):
+        if self.weapon is not None:
+            if self.inventory.index(self.weapon) == len(self.inventory)-1:
+                new_weapon = self.inventory[0]
+            else:
+                new_weapon = self.inventory[self.inventory.index(self.weapon)+1]
+            if debug_mode: print(f"{self} put the {new_weapon} into service")
+            Primitive.memory.remove(self.weapon)
+            Entity.memory.remove(self.weapon)
+            new_weapon.buffer_of_vector = 0
+            self.weapon = new_weapon
+            self.weapon.master = self
+            Primitive.memory.append(self.weapon)
+            Entity.memory.append(self.weapon)
+        else:
+            if len(self.inventory) > 0:
+                self.weapon = self.inventory[0]
+                self.weapon.master = self
+                Primitive.memory.append(self.inventory[0])
+                Entity.memory.append(self.inventory[0])
+        self.action = "quiet"
+
     def verification(self):
         super().verification()
         if self.weapon is not None:
             if self.action == "chop": self.__chop()
+        else:
+            if len(self.inventory) == 1:
+                self.weapon_change()
+        if self.action == "weapon-change": self.weapon_change()
         if self.action == "stun": self.__stun()
+
         self._run()
         self._install_hitbox()
 
@@ -589,42 +649,6 @@ class Player(Hunter):
     def verification(self):
         super().verification()
         self._pick_up_items()
-        if self.action is "weapon-change" or self.weapon is None:
-            self.weapon_change()
-
-    def _pick_up_items(self, weapon=None):
-        for item in Primitive.memory:
-            if item.__class__ in presence_in_inheritance(Weapon):
-                if item.master is None:
-                    for hitbox_point in item.hitbox:
-                        if hitbox_point in self.hitbox:
-                            if debug_mode: print(f"{self} got {item}")
-                            self.inventory.append(item)
-                            Primitive.memory.remove(item)
-                            Entity.memory.remove(item)
-                            break
-
-    def weapon_change(self):
-        if self.weapon is not None:
-            if self.inventory.index(self.weapon) == len(self.inventory)-1:
-                new_weapon = self.inventory[0]
-            else:
-                new_weapon = self.inventory[self.inventory.index(self.weapon)+1]
-            if debug_mode: print(f"{self} put the {new_weapon} into service")
-            Primitive.memory.remove(self.weapon)
-            Entity.memory.remove(self.weapon)
-            new_weapon.buffer_of_vector = 0
-            self.weapon = new_weapon
-            self.weapon.master = self
-            Primitive.memory.append(self.weapon)
-            Entity.memory.append(self.weapon)
-        else:
-            if len(self.inventory) > 0:
-                self.weapon = self.inventory[0]
-                self.weapon.master = self
-                Primitive.memory.append(self.inventory[0])
-                Entity.memory.append(self.inventory[0])
-        self.action = "quiet"
 
     def _dying(self):
         super()._dying()
@@ -633,6 +657,7 @@ class Player(Hunter):
         Text(text="The End", x=176, y=150, frames_to_death=time_to_exit, movable=False, size=80)
 
 
+#DO TO
 class Opponent(Hunter):
     img = complement_forms(get_images("person/red-circle"))
     waiting_attack = FPS // 2
@@ -649,40 +674,32 @@ class Opponent(Hunter):
     def verification(self):
         for prey in Primitive.memory:
             if prey.__class__ in presence_in_inheritance(Player):
-                if self.weapon is not None and self.action is not "stun":
-                    if self.x // 10 > prey.x // 10: self.movement["left"] = True
-                    else: self.movement["left"] = False
-
-                    if self.x // 10 < prey.x // 10: self.movement["right"] = True
-                    else: self.movement["right"] = False
-
-                    if self.y // 10 > prey.y // 10: self.movement["up"] = True
-                    else: self.movement["up"] = False
-
-                    if self.y // 10 < prey.y // 10: self.movement["down"] = True
-                    else: self.movement["down"] = False
-
+                if self.weapon is not None and self.action != "stun":
+                    self.move(prey, direction=True)
                     self.waiting_attack -= 1
                     if self.waiting_attack <= 0:
                         self.action = "chop"
                         self.waiting_attack = self.__class__.waiting_attack
                     break
-
                 else:
-                    if self.x // 10 < prey.x // 10: self.movement["left"] = True
-                    else: self.movement["left"] = False
-
-                    if self.x // 10 > prey.x // 10: self.movement["right"] = True
-                    else: self.movement["right"] = False
-
-                    if self.y // 10 < prey.y // 10: self.movement["up"] = True
-                    else: self.movement["up"] = False
-
-                    if self.y // 10 > prey.y // 10: self.movement["down"] = True
-                    else: self.movement["down"] = False
-                    break
+                    self.move(prey, direction=False)
 
         super().verification()
+
+    def move(self, prey, direction=True):
+        if self.x // 10 > prey.x // 10:
+            self.movement["left"] = direction
+        else:
+            self.movement["left"] = not direction
+
+        if self.x // 10 < prey.x // 10: self.movement["right"] = direction
+        else: self.movement["right"] = not direction
+
+        if self.y // 10 > prey.y // 10: self.movement["up"] = direction
+        else: self.movement["up"] = not direction
+
+        if self.y // 10 < prey.y // 10: self.movement["down"] = direction
+        else: self.movement["down"] = not direction
 
     def _dying(self):
         super()._dying()
@@ -691,9 +708,9 @@ class Opponent(Hunter):
 
 
 DRAW_QUEUE = [Abstraction, Static, Entity, Hud]
+log = []
 
 if __name__ == '__main__':
-    #Создаём прлиложение
     app = pygame.display.set_mode(app_win)
     pygame.display.set_icon(icon)
     pygame.display.set_caption("Lonely Hunter")
@@ -701,14 +718,16 @@ if __name__ == '__main__':
     pygame.mixer.music.set_volume(0.5)
     clock = pygame.time.Clock()
 
+    #Создаём отделную, прозрачную поверхность для паузы
     veil = pygame.Surface(app_win)
     veil.set_alpha(132)
     veil.fill((255, 255, 255))
-
-    GameZone(x=-plays_area[0]//2, y=-plays_area[1]//2, width=plays_area[0], height=plays_area[1])
+    veil.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 80).render("Pause", False, color["text"]), (210, 150))
 
     #Сущность которой мы можем управлять
     Hero = Player("Main Hero", app_win[0]//2 - 40, app_win[1]//2 - 40, speed=7, weapon=None)
+
+    GameZone(x=-plays_area[0]//2, y=-plays_area[1]//2, width=plays_area[0], height=plays_area[1])
     Camera(
         x=(app_win[0]-camera_area["width"])//2,
         y=(app_win[1]-camera_area["height"])//2,
@@ -716,7 +735,8 @@ if __name__ == '__main__':
         height=camera_area["height"],
         master=Hero
     )
-    if settings["score"]: Hero.score = Score(x=20, y=30, text="", movable=False, eternal=True, frames_to_death=time_to_exit, master=Hero)
+    if settings["score"]: Hero.score = Score(x=20, y=40, text="", movable=False, eternal=True, master=Hero)
+    if settings["show_weapon_name_and_index"]: SelectedWeaponsIndex(x=20, y=15, text="", movable=False, eternal=True, master=Hero)
 
     #Тестовые сущности
     if settings["plants"]: Plants.initialize_instances()
@@ -725,8 +745,6 @@ if __name__ == '__main__':
     Katana(name="Forest", x=150, y=180)
     Mace(name="Imperor", x=100, y=180)
     Hammer(name="Killer", x=50, y=180)
-
-    if debug_mode: print(f"Entity.memory has {len(Entity.memory)} objects: {Entity.memory}\nHud.memory has {len(Hud.memory)} objects: {Hud.memory}\nStatic.memory has {len(Static.memory)} objects: {Static.memory}\n")
 
     #Главный цикл
     while game:
@@ -749,9 +767,8 @@ if __name__ == '__main__':
                         if time: time = False
                         else: time = True
 
-                    #test
-                    if action.key in key["player"]["WEAPON_CHANGE"] and time:
-                        Hero.weapon_change()
+                    if action.key in key["player"]["WEAPON_CHANGE"]:
+                        Hero.action = "weapon-change"
 
                     if action.key in key["player"]["LEFT"]:
                         Hero.movement["left"] = True
@@ -783,8 +800,8 @@ if __name__ == '__main__':
                     item.verification()
                 except Exception as error:
                     if debug_mode and not exit:
-                        try: Errors.append(f"from verification, {item}: {type(error)} {error}")
-                        except AttributeError: Errors.append(f"from verification: {type(error)} {error}")
+                        try: log.append(f"from verification, {item}: {type(error)} {error}")
+                        except AttributeError: log.append(f"from verification: {type(error)} {error}")
 
         #Рендер
         for class_ in DRAW_QUEUE:
@@ -796,8 +813,8 @@ if __name__ == '__main__':
                             pygame.draw.rect(app, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
                 except Exception as error:
                     if debug_mode and not exit:
-                        try: Errors.append(f"from draw, {item}: {type(error)} {error}")
-                        except AttributeError: Errors.append(f"from draw: {type(error)} {error}")
+                        try: log.append(f"from draw, {item}: {type(error)} {error}")
+                        except AttributeError: log.append(f"from draw: {type(error)} {error}")
 
         if not time:
             app.blit(veil, (0, 0))
@@ -813,6 +830,6 @@ if __name__ == '__main__':
 
     if debug_mode:
         print(f"\nEntity.memory has {len(Entity.memory)} objects: {Entity.memory}\nHud.memory has {len(Hud.memory)} objects: {Hud.memory}\nStatic.memory has {len(Static.memory)} objects: {Static.memory}")
-        print(f"\nEXCLUSION ZONE, {len(Errors)} errors")
-        for error in Errors:
+        print(f"\nEXCLUSION ZONE, {len(log)} errors")
+        for error in log:
             print(error)

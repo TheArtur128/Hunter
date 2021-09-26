@@ -105,6 +105,8 @@ key = {
         "WEAPON_CHANGE": [pygame.K_TAB, pygame.K_RALT, pygame.K_LALT]
     }
 }
+with open(f"{folder_root}/material/general/names.json", "r") as file:
+    names = json.loads(file.read())
 
 with open(f"{folder_root}/configuration.json", "r") as file:
     j_soup = json.loads(file.read())

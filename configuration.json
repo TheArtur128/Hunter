@@ -3,6 +3,7 @@
     "window": [640, 430],
     "number_of_plants": 256,
     "show_damage": true,
+    "show_weapon_name_and_index": true,
     "health_indicator": true,
     "drain_health_on_kill": true,
     "seconds_to_exit": 3,
@@ -11,13 +12,16 @@
     "factor_plays_area": 5,
     "factor_of_camera_width": 2,
     "factor_of_camera_height": 2,
-    "debug_mode": false
+    "font": "Urbanist-Regular.ttf",
+    "percentage_chance_for_unique_weapons": 10,
+    "spread of characteristics for unique weapons": 100,
+    "debug_mode": true
   },
 
   "color": {
     "background": [28, 147, 64],
     "emptiness_of_map": [55, 55, 55],
-    "text": [185, 185, 185],
+    "text": [210, 210, 210],
     "show_damage": [255, 12, 0],
     "absence_health_line": [155, 155, 155],
     "health_line": [255, 10, 50],
