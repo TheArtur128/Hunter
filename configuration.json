@@ -13,8 +13,8 @@
     "factor_of_camera_width": 2,
     "factor_of_camera_height": 2,
     "font": "Urbanist-Regular.ttf",
-    "percentage_chance_for_unique_weapons": 10,
-    "spread of characteristics for unique weapons": 100,
+    "factor_of_unique_weapons": 5,
+    "spread_of_characteristics_for_unique_weapons": 33,
     "debug_mode": true
   },
 
@@ -26,6 +26,7 @@
     "absence_health_line": [155, 155, 155],
     "health_line": [255, 10, 50],
     "extra_health_line": [75, 75, 80],
+    "broken": [170, 40, 200],
     "debug_mode": [255, 0, 30]
   }
 }

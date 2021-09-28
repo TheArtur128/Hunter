@@ -16,14 +16,14 @@ def get_image(directory):
     return file
 
 
-#Парсит все в словарь
-def get_images(original_directory):
+#Парсит все файлы в словарь ключами которых являеться названия этих файлов
+def get_files(original_directory, parse_func=get_image):
     directory = f"{folder_root}/material/{original_directory}"
     with os.scandir(directory) as listOfEntries:
         files = {}
         for entry in listOfEntries:
             if entry.is_file():
-                files[entry.name.split(".")[0]] = get_image(f"{original_directory}/{entry.name}")
+                files[entry.name.split(".")[0]] = parse_func(f"{original_directory}/{entry.name}")
 
         return files
 
@@ -43,23 +43,6 @@ def complement_forms(surfaces):
     surfaces["7"] = pygame.transform.flip(surfaces["3"], True, True)
     surfaces["8"] = pygame.transform.flip(surfaces["2"], True, False)
     return surfaces
-
-
-#Возврощает рандомный знак
-def random_pole():
-    if random(0, 1) == 1:
-        return 1
-    else:
-        return -1
-
-
-#Перебрасываем вектор если перешли границу
-def check_vector(arg):
-    if int(arg) < 1:
-        arg += 8
-    elif int(arg) > 8:
-        arg -= 8
-    return arg
 
 
 def round(vaule, number_after_point=1):
@@ -91,10 +74,6 @@ def presence_in_inheritance(class_, atribut=None):
             return classes
 
 
-#Загружаем глобальные файлы
-soundtrack = pygame.mixer.music.load(f"{folder_root}/material/general/soundtracks/theme.mp3")
-icon = pygame.image.load(f"{folder_root}\material\general\graphix\icon.ico")
-
 #Группы кнопок которые в контесте приводят к одному результату
 key = {
     "player": {
@@ -105,6 +84,7 @@ key = {
         "WEAPON_CHANGE": [pygame.K_TAB, pygame.K_RALT, pygame.K_LALT]
     }
 }
+
 with open(f"{folder_root}/material/general/names.json", "r") as file:
     names = json.loads(file.read())
 
