@@ -171,6 +171,12 @@ class Text(Hud):
         app.blit(self.drawing_data, (self.x, self.y))
 
 
+class LevelOfOpponent(Text):
+    def verification(self):
+        self.text = f"Opponent's level: {Opponent.level}"
+        super().verification()
+
+
 class Score(Text):
     def verification(self):
         self.text = f"{self.master.killed} kills"
@@ -362,7 +368,7 @@ class Weapon(GameplayEntity):
         if self.master is not None:
             self.master.inventory.remove(self)
             self.master.weapon = None
-        Text(text=f"{self.name} is broken", x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["broken"])
+        if settings["hud"]: Text(text=f"{self.name} is broken", x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["broken"])
         super()._dying()
 
     def verification(self):
@@ -408,8 +414,12 @@ class Sword(Weapon):
 
 #Персонажи как класс
 class Hunter(GameplayEntity):
+    skins = {}
+    for directory in get_catalog("person"):
+        skins[directory.replace("person/", "")] = complement_forms(get_files(directory))
+
     def __init__(self, name, x, y, health=100, speed=5, vector=1, weapon="random", weapon_status="common", img=None):
-        super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed, img=None)
+        super().__init__(name=name, x=x, y=y, health=health, vector=vector, speed=speed, img=img)
         self.__action = "quiet"
         self.killed = 0
         self.movement = {
@@ -430,23 +440,23 @@ class Hunter(GameplayEntity):
 
         if self.weapon is not None: self.inventory.append(self.weapon)
 
-        if settings["health_indicator"]: self.indicator = Indicator(width=self.size[0], x=self.x, y=self.y, master=self)
+        if settings["hud"]: self.indicator = Indicator(width=self.size[0], x=self.x, y=self.y, master=self)
         else: self.indicator = None
 
     def __taking_damage(self, damage):
         if self.action == "stun" or self.weapon is not None:
             damage //= 2
 
-        if settings["show_damage"]: Text(text=str(damage), x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["show_damage"])
+        if settings["hud"]: Text(text=str(damage), x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["show_damage"])
         self.health["real"] -= damage
         if debug_mode: print(f"{self} suffered damage equal to {damage}, {self} have {self.health['real']}")
 
         if self.health["real"] <= 0: return "died"
         else: return "alive"
 
-    def __hit(self, prey, damage):
+    def _hit(self, prey, damage):
         if debug_mode: print(f"{self} hit {prey}!")
-        if prey.__taking_damage(self.weapon.damage) == "died":
+        if prey.__taking_damage(damage) == "died":
             if settings["drain_health_on_kill"]:
                 if debug_mode: print(f"{self} got {prey.health['max']//10} hp from the {prey}")
                 self.health["real"] += prey.health["max"]//10
@@ -458,7 +468,7 @@ class Hunter(GameplayEntity):
                 for weapon_point in self.weapon.hitbox:
                     if weapon_point in prey.hitbox:
                         self.weapon.health["real"] -= 1
-                        self.__hit(prey, self.weapon.damage)
+                        self._hit(prey, self.weapon.damage)
 
                         if self.vector in (6, 7, 8):
                             prey.x -= self.weapon.discarding_prey
@@ -663,7 +673,7 @@ class Hunter(GameplayEntity):
 
 #Одноэкземплярный класс
 class Player(Hunter):
-    img = complement_forms(get_files("person/blue-circle"))
+    img = Hunter.skins["blue"]
 
     def verification(self):
         super().verification()
@@ -677,16 +687,34 @@ class Player(Hunter):
 
 
 class Opponent(Hunter):
-    img = complement_forms(get_files("person/red-circle"))
-    waiting_attack = FPS // 2
     sum_all = 0
+    waiting_attack = FPS // 2
+    level = 1
+    skins_by_level = {
+        1: Hunter.skins["red"],
+        2: Hunter.skins["green"],
+        3: Hunter.skins["gold"],
+        4: Hunter.skins["black"]
+    }
+    img = Hunter.skins["red"] #Скин по умолчанию
+    score_for_next_level = -1
     spawn_places = [[x, y] for x in range(-81, app_win[0]) for y in [-81, app_win[1]]]
     spawn_places.extend([[x, y] for x in [-81, app_win[0]] for y in range(-81, app_win[0])])
 
-    def __init__(self, x, y, name=None, health=100, speed=5, vector=1, weapon="random", weapon_status="common"):
+    def __init__(self, x, y, name=None, health=50, speed=4, vector=1, img=None, weapon="random", weapon_status="common"):
         Opponent.sum_all += 1
         if name is None: name = f"Opponent {Opponent.sum_all}"
-        super().__init__(name=name, x=x, y=y, health=health, speed=speed, vector=vector, weapon=weapon)
+
+        Opponent.score_for_next_level += 1
+        if Opponent.score_for_next_level >= settings["Opponents_for_new_opponent_level"] + settings["cape_for_add._opponent_level"]*Opponent.level and Opponent.level < len(Opponent.skins_by_level):
+            Opponent.level += 1
+            Opponent.score_for_next_level = 0
+
+        img = Opponent.skins_by_level[Opponent.level]
+        health += Opponent.level*50
+        speed += Opponent.level
+
+        super().__init__(name=name, x=x, y=y, health=health, speed=speed, vector=vector, weapon=weapon, img=img)
         self.waiting_attack = self.__class__.waiting_attack
 
     def verification(self):
@@ -705,18 +733,16 @@ class Opponent(Hunter):
         super().verification()
 
     def move(self, prey, direction=True):
-        if self.x // 10 > prey.x // 10:
-            self.movement["left"] = direction
-        else:
-            self.movement["left"] = not direction
+        if self.x > (prey.x+prey.size[0]//2): self.movement["left"] = direction
+        else: self.movement["left"] = not direction
 
-        if self.x // 10 < prey.x // 10: self.movement["right"] = direction
+        if (self.x+self.size[0]//2) < prey.x: self.movement["right"] = direction
         else: self.movement["right"] = not direction
 
-        if self.y // 10 > prey.y // 10: self.movement["up"] = direction
+        if self.y > (prey.y+prey.size[1]//2): self.movement["up"] = direction
         else: self.movement["up"] = not direction
 
-        if self.y // 10 < prey.y // 10: self.movement["down"] = direction
+        if (self.y+self.size[1]//2) < prey.y: self.movement["down"] = direction
         else: self.movement["down"] = not direction
 
     def _dying(self):
@@ -755,13 +781,15 @@ if __name__ == '__main__':
         height=camera_area["height"],
         master=Hero
     )
-    if settings["score"]: Hero.score = Score(x=20, y=40, text="", movable=False, eternal=True, master=Hero)
-    if settings["show_weapon_name_and_index"]: SelectedWeaponsIndex(x=20, y=15, text="", movable=False, eternal=True, master=Hero)
+    if settings["hud"]:
+        Hero.score = Score(x=20, y=40, text="", movable=False, eternal=True, master=Hero)
+        LevelOfOpponent(x=app_win[0]-185, y=15, text="", movable=False, eternal=True)
+        SelectedWeaponsIndex(x=20, y=15, text="", movable=False, eternal=True, master=Hero)
 
     #Тестовые сущности
     if settings["plants"]: Plants.initialize_instances()
     Opponent(525, 325)
-    Sword(x=200, y=180, status="unique", health=1)
+    Sword(x=200, y=180, status="unique")
     Katana(x=150, y=180, status="unique")
     Mace(x=100, y=180, status="unique")
     Hammer(x=50, y=180, status="unique")
@@ -784,8 +812,12 @@ if __name__ == '__main__':
                         Hero.action = "chop"
 
                     if action.key is pygame.K_BACKQUOTE:
-                        if time: time = False
-                        else: time = True
+                        if time:
+                            time = False
+                            pygame.mixer.music.pause()
+                        else:
+                            time = True
+                            pygame.mixer.music.unpause()
 
                     if action.key in key["player"]["WEAPON_CHANGE"]:
                         Hero.action = "weapon-change"
@@ -836,6 +868,7 @@ if __name__ == '__main__':
                         try: log.append(f"from draw, {item}: {type(error)} {error}")
                         except AttributeError: log.append(f"from draw: {type(error)} {error}")
 
+        #Рендер эффекта паузы
         if not time:
             app.blit(veil, (0, 0))
 

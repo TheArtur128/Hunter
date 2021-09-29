@@ -28,6 +28,17 @@ def get_files(original_directory, parse_func=get_image):
         return files
 
 
+#Парсит пути всех обьектов в директории в список
+def get_catalog(original_directory):
+    directory = f"{folder_root}/material/{original_directory}"
+    with os.scandir(directory) as listOfEntries:
+        directoryes = []
+        for entry in listOfEntries:
+            directoryes.append(f"{original_directory}/{entry.name}")
+
+        return directoryes
+
+
 def generation_forms(surface):
     surfaces = {}
     for i in range(8):
