@@ -153,6 +153,38 @@ class Hud(Primitive):
         return f"<HUD object>"
 
 
+class Indicator(Hud):
+    def __init__(self, width, master=None, x=0, y=0, height=3, movable=True, smoothing=False, eternal=True):
+        super().__init__(x=x, y=y, movable=movable, smoothing=smoothing, master=master, eternal=eternal)
+        self.width = width
+        self.height = height
+        self.color = {
+            "absence_health_line": color["absence_health_line"],
+            "health_line": color["health_line"],
+            "extra_health_line": color["extra_health_line"]
+        }
+
+    def draw(self):
+        if self.master.health["real"] > self.master.health["max"] // 2:
+            pygame.draw.rect(app, self.color["health_line"], (self.x, self.y-10, self.width, self.height))
+            line_color = self.color["extra_health_line"]
+            width_index = 1
+        else:
+            pygame.draw.rect(app, self.color["absence_health_line"], (self.x, self.y-10, self.width, self.height))
+            more_overall_health = False
+            line_color = self.color["health_line"]
+            width_index = 0
+
+        pygame.draw.rect(
+            app,
+            line_color,
+            (self.x,
+            self.y-10,
+            int(self.width*(self.master.health["real"]/(self.master.health["max"]//2) - width_index)),
+            self.height),
+        )
+
+
 class Text(Hud):
     font_way = f"{folder_root}/material/general/fonts/{settings['font']}"
 
@@ -194,38 +226,6 @@ class SelectedWeaponsIndex(Text):
 
         self.text = f"{weapon_index}/{len(self.master.inventory)}: {weapon_name}"
         super().verification()
-
-
-class Indicator(Hud):
-    def __init__(self, width, master=None, x=0, y=0, height=3, movable=True, smoothing=False, eternal=True):
-        super().__init__(x=x, y=y, movable=movable, smoothing=smoothing, master=master, eternal=eternal)
-        self.width = width
-        self.height = height
-        self.color = {
-            "absence_health_line": color["absence_health_line"],
-            "health_line": color["health_line"],
-            "extra_health_line": color["extra_health_line"]
-        }
-
-    def draw(self):
-        if self.master.health["real"] > self.master.health["max"] // 2:
-            pygame.draw.rect(app, self.color["health_line"], (self.x, self.y-10, self.width, self.height))
-            line_color = self.color["extra_health_line"]
-            width_index = 1
-        else:
-            pygame.draw.rect(app, self.color["absence_health_line"], (self.x, self.y-10, self.width, self.height))
-            more_overall_health = False
-            line_color = self.color["health_line"]
-            width_index = 0
-
-        pygame.draw.rect(
-            app,
-            line_color,
-            (self.x,
-            self.y-10,
-            int(self.width*(self.master.health["real"]/(self.master.health["max"]//2) - width_index)),
-            self.height),
-        )
 
 
 class Static(Primitive):
@@ -278,7 +278,7 @@ class GameplayEntity(Primitive):
         }
         '''В игре 8 векторов, первый вектор обозначает 90°,
         последующие уменьшены на 45° от предыдущего'''
-        self.vector = vector
+        self.__vector = vector
         if img is None: self.img = self.__class__.img
         else: self.img = img
         self.update_size()
@@ -305,16 +305,18 @@ class GameplayEntity(Primitive):
     def __repr__(self):
         return f"<{self.name}>"
 
-    @staticmethod
-    def check_vector(vector):
-        if int(vector) < 1:
-            vector += 8
-        elif int(vector) > 8:
-            vector -= 8
-        return vector
-
     @property
     def size(self): return self.__size
+
+    @property
+    def vector(self): return self.__vector
+    @vector.setter
+    def vector(self, vaule):
+        self.__vector = vaule
+        if self.__vector < 1:
+            self.__vector += 8
+        elif self.__vector > 8:
+            self.__vector -= 8
 
 
 class Weapon(GameplayEntity):
@@ -344,7 +346,6 @@ class Weapon(GameplayEntity):
     def __update_coordinates(self):
         if self.master is not None:
             self.vector = self.master.vector + self.buffer_of_vector
-            self.vector = self.check_vector(self.vector)
 
             self.x = int(self.master.x + self.master.weapon_coordinates()[self.vector][0])
             self.y = int(self.master.y + self.master.weapon_coordinates()[self.vector][1])
@@ -379,7 +380,7 @@ class Weapon(GameplayEntity):
 class Katana(Weapon):
     img = generation_forms(get_image(f"weapon/katana.png"))
     name = "Katana"
-    health = 24
+    health = 36
     damage = 10
     speed = 3
     discarding_prey = 40
@@ -388,7 +389,7 @@ class Katana(Weapon):
 class Mace(Weapon):
     img = generation_forms(get_image(f"weapon/mace.png"))
     name = "Mace"
-    health = 16
+    health = 24
     damage = 15
     speed = 4
     discarding_prey = 75
@@ -397,7 +398,7 @@ class Mace(Weapon):
 class Hammer(Weapon):
     img = generation_forms(get_image(f"weapon/hammer.png"))
     name = "Hammer"
-    health = 14
+    health = 21
     damage = 20
     speed = 4
     discarding_prey = 100
@@ -406,7 +407,7 @@ class Hammer(Weapon):
 class Sword(Weapon):
     img = generation_forms(get_image(f"weapon/sword.png"))
     name = "Sword"
-    health = 22
+    health = 33
     damage = 12
     speed = 3
     discarding_prey = 75
@@ -507,7 +508,6 @@ class Hunter(GameplayEntity):
                 self.weapon.buffer_of_vector = 0
                 del self.weapon.action
 
-        self.weapon.vector = self.check_vector(self.weapon.vector)
 
     def __stun(self):
         try:
@@ -584,7 +584,7 @@ class Hunter(GameplayEntity):
                 elif self.vector in [6, 7, 8]:
                     self.vector -= 1
 
-        self.vector = self.check_vector(self.vector)
+        self.vector = self.vector
 
     def _install_hitbox(self):
         self.hitbox = []
@@ -754,7 +754,7 @@ class Opponent(Hunter):
 DRAW_QUEUE = [Abstraction, Static, GameplayEntity, Hud]
 log = []
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = pygame.display.set_mode(app_win)
     icon = pygame.image.load(f"{folder_root}\material\general\graphix\icon.ico")
     pygame.display.set_icon(icon)
@@ -771,7 +771,9 @@ if __name__ == '__main__':
     veil.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 80).render("Pause", False, color["text"]), (210, 150))
 
     #Сущность которой мы можем управлять
-    Hero = Player("Main Hero", app_win[0]//2 - 40, app_win[1]//2 - 40, speed=7, weapon=None)
+    Hero = Player("Main Hero", tithe_win[0]*settings["factor_of_camera_width"], app_win[1]//2 - 40, speed=7, vector=3)
+
+    Opponent(app_win[0] - tithe_win[0]*settings["factor_of_camera_width"] - 80, app_win[1]//2 - 40, vector=7)
 
     GameZone(x=-plays_area[0]//2, y=-plays_area[1]//2, width=plays_area[0], height=plays_area[1])
     Camera(
@@ -781,18 +783,13 @@ if __name__ == '__main__':
         height=camera_area["height"],
         master=Hero
     )
+
     if settings["hud"]:
         Hero.score = Score(x=20, y=40, text="", movable=False, eternal=True, master=Hero)
         LevelOfOpponent(x=app_win[0]-185, y=15, text="", movable=False, eternal=True)
         SelectedWeaponsIndex(x=20, y=15, text="", movable=False, eternal=True, master=Hero)
 
-    #Тестовые сущности
     if settings["plants"]: Plants.initialize_instances()
-    Opponent(525, 325)
-    Sword(x=200, y=180, status="unique")
-    Katana(x=150, y=180, status="unique")
-    Mace(x=100, y=180, status="unique")
-    Hammer(x=50, y=180, status="unique")
 
     #Главный цикл
     while game:

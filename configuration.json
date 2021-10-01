@@ -7,14 +7,14 @@
     "seconds_to_exit": 3,
     "plants": true,
     "factor_plays_area": 5,
-    "factor_of_camera_width": 2,
-    "factor_of_camera_height": 2,
+    "factor_of_camera_width": 2.5,
+    "factor_of_camera_height": 2.5,
     "font": "Urbanist-Regular.ttf",
     "factor_of_unique_weapons": 5,
     "spread_of_characteristics_for_unique_weapons": 33,
     "Opponents_for_new_opponent_level": 6,
     "cape_for_add._opponent_level": -1,
-    "debug_mode": true
+    "debug_mode": false
   },
 
   "color": {

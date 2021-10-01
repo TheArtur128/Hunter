@@ -48,10 +48,11 @@ def generation_forms(surface):
 
 
 def complement_forms(surfaces):
+    surfaces["3"] = pygame.transform.rotate(surfaces["1"], -90)
     surfaces["4"] = pygame.transform.flip(surfaces["2"], False, True)
-    surfaces["5"] = pygame.transform.flip(surfaces["1"], True, True)
+    surfaces["5"] = pygame.transform.rotate(surfaces["3"], -90)
     surfaces["6"] = pygame.transform.flip(surfaces["2"], True, True)
-    surfaces["7"] = pygame.transform.flip(surfaces["3"], True, True)
+    surfaces["7"] = pygame.transform.rotate(surfaces["5"], -90)
     surfaces["8"] = pygame.transform.flip(surfaces["2"], True, False)
     return surfaces
 
