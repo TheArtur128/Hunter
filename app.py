@@ -52,18 +52,23 @@ while game:
             if action.type == pygame.MOUSEBUTTONDOWN:
                 if action.button == 1:
                     Hero.action = "chop"
+                if action.button == 3:
+                    Hero.action = "dash"
 
             if action.type == pygame.KEYDOWN:
-                if action.key is pygame.K_SPACE:
+                if action.key in key["player"]["ATTACK"]:
                     Hero.action = "chop"
 
-                if action.key is pygame.K_BACKQUOTE:
+                if action.key in key["player"]["PAUSE"]:
                     if time:
                         time = False
                         pygame.mixer.music.pause()
                     else:
                         time = True
                         pygame.mixer.music.unpause()
+
+                if action.key in key["player"]["RUSH"]:
+                    Hero.action = "dash"
 
                 if action.key in key["player"]["WEAPON_CHANGE"]:
                     Hero.action = "weapon-change"

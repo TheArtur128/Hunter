@@ -89,11 +89,14 @@ def presence_in_inheritance(class_, atribut=None):
 #Группы кнопок которые в контесте приводят к одному результату
 key = {
     "player": {
+        "ATTACK": [pygame.K_SPACE],
         "LEFT": [pygame.K_LEFT, pygame.K_a],
         "RIGHT": [pygame.K_RIGHT, pygame.K_d],
         "UP": [pygame.K_UP, pygame.K_w],
         "DOWN": [pygame.K_DOWN, pygame.K_s],
-        "WEAPON_CHANGE": [pygame.K_TAB, pygame.K_RALT, pygame.K_LALT]
+        "WEAPON_CHANGE": [pygame.K_TAB, pygame.K_RALT, pygame.K_LALT],
+        "RUSH": [pygame.K_x],
+        "PAUSE": [pygame.K_BACKQUOTE]
     }
 }
 

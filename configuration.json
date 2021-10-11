@@ -14,6 +14,7 @@
     "spread_of_characteristics_for_unique_weapons": 33,
     "Opponents_for_new_opponent_level": 6,
     "cape_for_add._opponent_level": -1,
+    "dash_multiplier": 14,
     "debug_mode": false
   },
 
@@ -22,9 +23,10 @@
     "emptiness_of_map": [55, 55, 55],
     "text": [210, 210, 210],
     "show_damage": [255, 12, 0],
-    "absence_health_line": [155, 155, 155],
+    "absence_line": [155, 155, 155],
     "health_line": [255, 10, 50],
-    "extra_health_line": [75, 75, 80],
+    "dash_line": [255, 200, 15],
+    "extra_line": [75, 75, 80],
     "broken": [170, 40, 200],
     "debug_mode": [255, 0, 30]
   }

@@ -1,6 +1,5 @@
 from data import *
 
-
 #Суперкласс всего что может вычесляться
 class Primitive:
     #Хранилище всех экземпляров для их вычислений
@@ -117,12 +116,11 @@ class GameZone(Wall):
 class Hud(Primitive):
     memory = []
 
-    def __init__(self, x=0, y=0, frames_to_death=FPS, movable=True, smoothing=False, eternal=False, master=None):
+    def __init__(self, x=0, y=0, frames_to_death=FPS, movable=True, eternal=False, master=None):
         super().__init__(x=x, y=y)
         Hud.memory.append(self)
         self.master = master
         self.initial_coordinates = [x, y]
-        self.smoothing = smoothing
         self.frames_to_death = frames_to_death
         self.eternal = eternal
         self.movable = movable
@@ -153,25 +151,22 @@ class Hud(Primitive):
 
 
 class Indicator(Hud):
-    def __init__(self, width, master=None, x=0, y=0, height=3, movable=True, smoothing=False, eternal=True):
-        super().__init__(x=x, y=y, movable=movable, smoothing=smoothing, master=master, eternal=eternal)
+    def __init__(self, width, master=None, x=0, y=0, height=3, movable=True, eternal=True):
+        super().__init__(x=x, y=y, movable=movable, master=master, eternal=eternal)
         self.width = width
         self.height = height
-        self.color = {
-            "absence_health_line": color["absence_health_line"],
-            "health_line": color["health_line"],
-            "extra_health_line": color["extra_health_line"]
-        }
 
+
+class HealthIndicator(Indicator):
     def draw(self, surface):
         if self.master.health["real"] > self.master.health["max"] // 2:
-            pygame.draw.rect(surface, self.color["health_line"], (self.x, self.y-10, self.width, self.height))
-            line_color = self.color["extra_health_line"]
+            pygame.draw.rect(surface, color["health_line"], (self.x, self.y-10, self.width, self.height))
+            line_color = color["extra_line"]
             width_index = 1
         else:
-            pygame.draw.rect(surface, self.color["absence_health_line"], (self.x, self.y-10, self.width, self.height))
+            pygame.draw.rect(surface, color["absence_line"], (self.x, self.y-10, self.width, self.height))
             more_overall_health = False
-            line_color = self.color["health_line"]
+            line_color = color["health_line"]
             width_index = 0
 
         pygame.draw.rect(
@@ -184,11 +179,31 @@ class Indicator(Hud):
         )
 
 
+class RushIndicator(Indicator):
+    def draw(self, surface):
+        pygame.draw.rect(surface, color["absence_line"], (self.x, self.y-14, self.width, self.height))
+
+        if self.master.charge_level["dash"]["real"] < self.master.charge_level["dash"]["max"]:
+            line_color = color["dash_line"]
+        else:
+            line_color = color["extra_line"]
+
+        pygame.draw.rect(
+            surface,
+            line_color,
+            (self.x,
+            self.y-14,
+            self.width*(self.master.charge_level["dash"]["real"]/self.master.charge_level["dash"]["max"]),
+            self.height),
+        )
+
+
 class Text(Hud):
     font_way = f"{folder_root}/material/general/fonts/{settings['font']}"
 
     def __init__(self, text, x=0, y=0, color=color["text"], frames_to_death=FPS, movable=True, smoothing=True, eternal=False, size=21, master=None):
-        super().__init__(x=x, y=y, frames_to_death=frames_to_death, movable=movable, smoothing=smoothing, eternal=eternal, master=master)
+        super().__init__(x=x, y=y, frames_to_death=frames_to_death, movable=movable, eternal=eternal, master=master)
+        self.smoothing = smoothing
         self.text = text
         self.size = size
         self.color = color
@@ -439,8 +454,20 @@ class Hunter(GameplayEntity):
 
         if self.weapon is not None: self.inventory.append(self.weapon)
 
-        if settings["hud"]: self.indicator = Indicator(width=self.size[0], x=self.x, y=self.y, master=self)
-        else: self.indicator = None
+        if settings["hud"]:
+            self.indicators = [
+                HealthIndicator(width=self.size[0], x=self.x, y=self.y, master=self),
+                RushIndicator(width=self.size[0], height=2, x=self.x, y=self.y-40, master=self)
+            ]
+        else:
+            self.indicators = None
+
+        self.charge_level = {
+            "dash": {
+                "real": 0,
+                "max": 4*FPS
+            }
+        }
 
     def __taking_damage(self, damage):
         if self.action == "stun" or self.weapon is not None:
@@ -498,8 +525,6 @@ class Hunter(GameplayEntity):
             self.weapon.action["iterations-done"] += 1
             self.weapon.buffer_of_vector -= 1
 
-
-
             #Завершаем удар
             if self.weapon.action["iterations-done"] >= 4:
                 self.action = "quiet"
@@ -521,6 +546,21 @@ class Hunter(GameplayEntity):
             del self.stun_attribute
             if self.weapon is not None: self.weapon.buffer_of_vector = 0
             self.__action = "quiet"
+
+    def __dash(self):
+        if self.charge_level["dash"]["real"] >= self.charge_level["dash"]["max"]:
+            self.charge_level["dash"]["real"] = 0
+
+            if self.vector in (8, 1, 2):
+                self.y -= self.speed * settings["dash_multiplier"]
+            if self.vector in (2, 3, 4):
+                self.x += self.speed * settings["dash_multiplier"]
+            if self.vector in (4, 5, 6):
+                self.y += self.speed * settings["dash_multiplier"]
+            if self.vector in (6, 7, 8):
+                self.x -= self.speed * settings["dash_multiplier"]
+
+        self.__action = "quiet"
 
     def _run(self):
         #Если были нажаты две смежные кнопки
@@ -629,12 +669,17 @@ class Hunter(GameplayEntity):
 
     def verification(self):
         super().verification()
+        for action in self.charge_level:
+            if self.charge_level[action]["real"] < self.charge_level[action]["max"]:
+                self.charge_level[action]["real"] += 1
+
         if self.weapon is not None:
             if self.action == "chop": self.__chop()
         else:
             if len(self.inventory) >= 1:
                 self.weapon_change()
         if self.action == "weapon-change": self.weapon_change()
+        if self.action == "dash": self.__dash()
         if self.action == "stun": self.__stun()
 
         self._run()
@@ -643,8 +688,9 @@ class Hunter(GameplayEntity):
     def _dying(self):
         if self.weapon is not None:
             self.weapon.master = None
-        if self.indicator is not None:
-            self.indicator._dying()
+        if self.indicators is not None:
+            for item in self.indicators:
+                item._dying()
         super()._dying()
 
     def weapon_coordinates(self):
@@ -683,6 +729,7 @@ class Player(Hunter):
         Text(text="The End", x=176, y=150, frames_to_death=time_to_exit, movable=False, size=80)
 
 
+#DO IT (later)
 class Opponent(Hunter):
     sum_all = 0
     waiting_attack = FPS // 2
@@ -726,6 +773,9 @@ class Opponent(Hunter):
                     break
                 else:
                     self.move(prey, direction=False)
+
+        if self.charge_level["dash"]["real"] >= self.charge_level["dash"]["max"]:
+            self.action = "dash"
 
         super().verification()
 

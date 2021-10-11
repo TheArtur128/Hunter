@@ -11,9 +11,10 @@
 
  ## Control:
  * *Left Mouse Button* and *Space* is *Attack*
+ * *Right Mouse Button* and *X* is *Rush*
+ * *Tab* and *Alt* is *Weapon change*
  * *Left arrow* and *A* is *Move Left*
  * *Right arrow* and *D* is *Move Right*
  * *Up arrow* and *W* is *Move Up*
  * *Down arrow* and *S* is *Move Down*
- * *Tab* and *Alt* is *Weapon change*
  * *Backquote* is *Pause*
