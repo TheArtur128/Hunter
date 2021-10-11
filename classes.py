@@ -453,7 +453,7 @@ class Hunter(GameplayEntity):
         if self.health["real"] <= 0: return "died"
         else: return "alive"
 
-    def _hit(self, prey, damage):
+    def __hit(self, prey, damage):
         if debug_mode: print(f"{self} hit {prey}!")
         if prey.__taking_damage(damage) == "died":
             if settings["drain_health_on_kill"]:
@@ -467,7 +467,7 @@ class Hunter(GameplayEntity):
                 for weapon_point in self.weapon.hitbox:
                     if weapon_point in prey.hitbox:
                         self.weapon.health["real"] -= 1
-                        self._hit(prey, self.weapon.damage)
+                        self.__hit(prey, self.weapon.damage)
 
                         if self.vector in (6, 7, 8):
                             prey.x -= self.weapon.discarding_prey

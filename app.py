@@ -1,6 +1,6 @@
 from classes import *
 
-DRAW_QUEUE = [Abstraction, Static, GameplayEntity, Hud]
+draw_queue = [Abstraction, Static, GameplayEntity, Hud]
 log = []
 
 app = pygame.display.set_mode(app_win)
@@ -102,7 +102,7 @@ while game:
                     except AttributeError: log.append(f"from verification: {type(error)} {error}")
 
     #Рендер
-    for class_ in DRAW_QUEUE:
+    for class_ in draw_queue:
         for item in class_.memory:
             try:
                 item.draw(app)
@@ -117,11 +117,12 @@ while game:
     if not time:
         app.blit(veil, (0, 0))
 
-    if exit and time_to_exit:
+    if (exit and time_to_exit) or not Hero in Primitive.memory:
         if debug_mode: print(f"{round(time_to_exit/FPS, 2)} seconds left until the game closes")
+        exit = True
         time_to_exit -= 1
         if time_to_exit <= 0:
-            break
+            game = False
 
     pygame.display.update()
 
