@@ -160,11 +160,11 @@ class Indicator(Hud):
 class HealthIndicator(Indicator):
     def draw(self, surface):
         if self.master.health["real"] > self.master.health["max"] // 2:
-            pygame.draw.rect(surface, color["health_line"], (self.x, self.y-10, self.width, self.height))
+            pygame.draw.rect(surface, color["health_line"], (self.x, self.y-12, self.width, self.height))
             line_color = color["extra_line"]
             width_index = 1
         else:
-            pygame.draw.rect(surface, color["absence_line"], (self.x, self.y-10, self.width, self.height))
+            pygame.draw.rect(surface, color["absence_line"], (self.x, self.y-12, self.width, self.height))
             more_overall_health = False
             line_color = color["health_line"]
             width_index = 0
@@ -173,7 +173,7 @@ class HealthIndicator(Indicator):
             surface,
             line_color,
             (self.x,
-            self.y-10,
+            self.y-12,
             int(self.width*(self.master.health["real"]/(self.master.health["max"]//2) - width_index)),
             self.height),
         )
@@ -181,7 +181,7 @@ class HealthIndicator(Indicator):
 
 class RushIndicator(Indicator):
     def draw(self, surface):
-        pygame.draw.rect(surface, color["absence_line"], (self.x, self.y-14, self.width, self.height))
+        pygame.draw.rect(surface, color["absence_line"], (self.x, self.y-7, self.width, self.height))
 
         if self.master.charge_level["dash"]["real"] < self.master.charge_level["dash"]["max"]:
             line_color = color["dash_line"]
@@ -192,7 +192,7 @@ class RushIndicator(Indicator):
             surface,
             line_color,
             (self.x,
-            self.y-14,
+            self.y-7,
             self.width*(self.master.charge_level["dash"]["real"]/self.master.charge_level["dash"]["max"]),
             self.height),
         )
@@ -456,8 +456,8 @@ class Hunter(GameplayEntity):
 
         if settings["hud"]:
             self.indicators = [
-                HealthIndicator(width=self.size[0], x=self.x, y=self.y, master=self),
-                RushIndicator(width=self.size[0], height=2, x=self.x, y=self.y-40, master=self)
+                HealthIndicator(width=self.size[0], height=3, x=self.x, y=self.y, master=self),
+                RushIndicator(width=self.size[0], height=1, x=self.x, y=self.y, master=self)
             ]
         else:
             self.indicators = None
@@ -727,7 +727,7 @@ class Player(Hunter):
         global exit
         exit = True
         Text(text="The End", x=176, y=150, frames_to_death=time_to_exit, movable=False, size=80)
-
+        Text(text="Again?", x=285, y=235, frames_to_death=time_to_exit, movable=False, size=21)
 
 #DO IT (later)
 class Opponent(Hunter):

@@ -18,27 +18,42 @@ veil.set_alpha(132)
 veil.fill((255, 255, 255))
 veil.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 80).render("Pause", False, color["text"]), (210, 150))
 
-#Сущность которой мы можем управлять
-Hero = Player("Main Hero", tithe_win[0]*settings["factor_of_camera_width"], app_win[1]//2 - 40, speed=7, vector=3)
+def set_game_scene():
+    global exit
+    exit = False
 
-Opponent(app_win[0] - tithe_win[0]*settings["factor_of_camera_width"] - 80, app_win[1]//2 - 40, vector=7)
+    global time_to_exit
+    time_to_exit = FPS * settings["seconds_to_exit"]
 
-GameZone(x=-plays_area[0]//2, y=-plays_area[1]//2, width=plays_area[0], height=plays_area[1])
-Camera(
-    x=(app_win[0]-camera_area["width"])//2,
-    y=(app_win[1]-camera_area["height"])//2,
-    width=camera_area["width"],
-    height=camera_area["height"],
-    master=Hero
-)
+    for class_ in presence_in_inheritance(Primitive, "memory"):
+        class_.memory = []
 
-if settings["hud"]:
-    Hero.score = Score(x=20, y=40, text="", movable=False, eternal=True, master=Hero)
-    LevelOfOpponent(x=app_win[0]-185, y=15, text="", movable=False, eternal=True)
-    SelectedWeaponsIndex(x=20, y=15, text="", movable=False, eternal=True, master=Hero)
+    #Сущность которой мы будем управлять
+    global Hero
+    Hero = Player("Main Hero", tithe_win[0]*settings["factor_of_camera_width"], app_win[1]//2 - 40, speed=7, vector=3)
 
-if settings["plants"]: Plants.initialize_instances()
+    Opponent.sum_all = 0
+    Opponent.level = 1
+    Opponent.score_for_next_level = -1
+    Opponent(app_win[0] - tithe_win[0]*settings["factor_of_camera_width"] - 80, app_win[1]//2 - 40, vector=7)
 
+    GameZone(x=-plays_area[0]//2, y=-plays_area[1]//2, width=plays_area[0], height=plays_area[1])
+    Camera(
+        x=(app_win[0]-camera_area["width"])//2,
+        y=(app_win[1]-camera_area["height"])//2,
+        width=camera_area["width"],
+        height=camera_area["height"],
+        master=Hero
+    )
+
+    if settings["hud"]:
+        Score(x=20, y=40, text="", movable=False, eternal=True, master=Hero)
+        LevelOfOpponent(x=app_win[0]-185, y=15, text="", movable=False, eternal=True)
+        SelectedWeaponsIndex(x=20, y=15, text="", movable=False, eternal=True, master=Hero)
+
+    if settings["plants"]: Plants.initialize_instances()
+
+set_game_scene()
 
 #Главный цикл
 while game:
@@ -93,6 +108,10 @@ while game:
                     Hero.movement["up"] = False
                 if action.key in key["player"]["DOWN"]:
                     Hero.movement["down"] = False
+        else:
+            if action.type == pygame.KEYDOWN:
+                if action.key in key["menu"]["AGAIN"]:
+                    set_game_scene()
 
     app.fill((color["emptiness_of_map"]))
 
@@ -124,7 +143,8 @@ while game:
 
     if (exit and time_to_exit) or not Hero in Primitive.memory:
         if debug_mode: print(f"{round(time_to_exit/FPS, 2)} seconds left until the game closes")
-        exit = True
+        app.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 80).render("The End", True, color["text"]), (176, 150))
+        app.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 21).render("Again?", True, color["text"]), (285, 235))
         time_to_exit -= 1
         if time_to_exit <= 0:
             game = False

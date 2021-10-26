@@ -97,6 +97,9 @@ key = {
         "WEAPON_CHANGE": [pygame.K_TAB, pygame.K_RALT, pygame.K_LALT],
         "RUSH": [pygame.K_x],
         "PAUSE": [pygame.K_BACKQUOTE]
+    },
+    "menu": {
+        "AGAIN": [pygame.K_SPACE]
     }
 }
 
@@ -111,12 +114,9 @@ with open(f"{folder_root}/configuration.json", "r") as file:
 #Глобальные состояния
 game = True
 time = True
-exit = False
 debug_mode = settings["debug_mode"]
 
 FPS = 30
-
-time_to_exit = FPS * settings["seconds_to_exit"]
 
 app_win = settings["window"]
 
