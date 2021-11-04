@@ -1,24 +1,10 @@
 from classes import *
 
-draw_queue = [Abstraction, Static, GameplayEntity, Hud]
-log = []
-
-app = pygame.display.set_mode(app_win)
-icon = pygame.image.load(f"{folder_root}\material\general\graphix\icon.ico")
-pygame.display.set_icon(icon)
-pygame.display.set_caption("Lonely Hunter")
-pygame.mixer.music.load(f"{folder_root}/material/general/soundtracks/tougenkyou alien.mp3")
-pygame.mixer.music.play(loops=-1)
-pygame.mixer.music.set_volume(0.5)
-clock = pygame.time.Clock()
-
-#Создаём отделную, прозрачную поверхность для паузы
-veil = pygame.Surface(app_win)
-veil.set_alpha(132)
-veil.fill((255, 255, 255))
-veil.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 80).render("Pause", False, color["text"]), (210, 150))
 
 def set_game_scene():
+    pygame.mixer.music.play(loops=-1)
+    pygame.mixer.music.set_volume(0.5)
+
     global exit
     exit = False
 
@@ -52,6 +38,23 @@ def set_game_scene():
         SelectedWeaponsIndex(x=20, y=15, text="", movable=False, eternal=True, master=Hero)
 
     if settings["plants"]: Plants.initialize_instances()
+
+
+draw_queue = [Abstraction, Static, GameplayEntity, Hud]
+log = []
+
+app = pygame.display.set_mode(app_win)
+icon = pygame.image.load(f"{folder_root}\material\general\graphix\icon.ico")
+pygame.display.set_icon(icon)
+pygame.display.set_caption("Lonely Hunter")
+pygame.mixer.music.load(f"{folder_root}/material/general/soundtracks/tougenkyou alien.mp3")
+clock = pygame.time.Clock()
+
+#Создаём отделную, прозрачную поверхность для паузы
+veil = pygame.Surface(app_win)
+veil.set_alpha(132)
+veil.fill((255, 255, 255))
+veil.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 80).render("Pause", False, color["text"]), (210, 150))
 
 set_game_scene()
 

@@ -1,5 +1,6 @@
 from data import *
 
+
 #Суперкласс всего что может вычесляться
 class Primitive:
     #Хранилище всех экземпляров для их вычислений
@@ -59,9 +60,6 @@ class Camera(Wall):
     def __init__(self, x, y, width, height, master):
         super().__init__(x=x, y=y, width=width, height=height)
         self.master = master
-
-    def verification(self):
-        super().verification()
 
     def _working_with_objects_outside_of_self(self):
         coordinates_my_master = self.master._get_hitbox_by_coordinates()
@@ -470,7 +468,7 @@ class Hunter(GameplayEntity):
         }
 
     def __taking_damage(self, damage):
-        if self.action == "stun" or self.weapon is not None:
+        if self.action == "stun" and self.weapon is not None:
             damage //= 2
 
         if settings["hud"]: Text(text=str(damage), x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["show_damage"])
@@ -532,6 +530,10 @@ class Hunter(GameplayEntity):
                 del self.weapon.action
 
     def __stun(self):
+        if self.weapon is None:
+            self.__action = "quiet"
+            return None
+
         try:
             self.stun_attribute
         except AttributeError:
@@ -559,6 +561,8 @@ class Hunter(GameplayEntity):
                 self.y += self.speed * settings["dash_multiplier"]
             if self.vector in (6, 7, 8):
                 self.x -= self.speed * settings["dash_multiplier"]
+
+            if debug_mode: print(f"{self} made a rush")
 
         self.__action = "quiet"
 
@@ -729,7 +733,7 @@ class Player(Hunter):
         Text(text="The End", x=176, y=150, frames_to_death=time_to_exit, movable=False, size=80)
         Text(text="Again?", x=285, y=235, frames_to_death=time_to_exit, movable=False, size=21)
 
-#DO IT (later)
+
 class Opponent(Hunter):
     sum_all = 0
     waiting_attack = FPS // 2
@@ -740,7 +744,6 @@ class Opponent(Hunter):
         3: Hunter.skins["gold"],
         4: Hunter.skins["black"]
     }
-    img = Hunter.skins["red"] #Скин по умолчанию
     score_for_next_level = -1
     spawn_places = [[x, y] for x in range(-81, app_win[0]) for y in [-81, app_win[1]]]
     spawn_places.extend([[x, y] for x in [-81, app_win[0]] for y in range(-81, app_win[0])])

@@ -17,4 +17,5 @@
  * *Right arrow* and *D* is *Move Right*
  * *Up arrow* and *W* is *Move Up*
  * *Down arrow* and *S* is *Move Down*
+ * *Space* is *Again*
  * *Backquote* is *Pause*
