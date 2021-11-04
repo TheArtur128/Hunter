@@ -741,8 +741,9 @@ class Opponent(Hunter):
     skins_by_level = {
         1: Hunter.skins["red"],
         2: Hunter.skins["green"],
-        3: Hunter.skins["gold"],
-        4: Hunter.skins["black"]
+        3: Hunter.skins["purple"],
+        4: Hunter.skins["gold"],
+        5: Hunter.skins["black"]
     }
     score_for_next_level = -1
     spawn_places = [[x, y] for x in range(-81, app_win[0]) for y in [-81, app_win[1]]]

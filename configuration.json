@@ -15,7 +15,7 @@
     "Opponents_for_new_opponent_level": 6,
     "cape_for_add._opponent_level": -1,
     "dash_multiplier": 14,
-    "debug_mode": true
+    "debug_mode": false
   },
 
   "color": {
