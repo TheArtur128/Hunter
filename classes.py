@@ -424,6 +424,14 @@ class Sword(Weapon):
     discarding_prey = 75
 
 
+class Scythe(Weapon):
+    img = generation_forms(get_image(f"weapon/scythe.png"))
+    name = "Scythe"
+    health = 20
+    damage = 17
+    speed = 5
+    discarding_prey = 95
+
 #Персонажи как класс
 class Hunter(GameplayEntity):
     skins = {}
