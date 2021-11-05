@@ -214,15 +214,9 @@ class Text(Hud):
         surface.blit(self.drawing_data, (self.x, self.y))
 
 
-class LevelOfOpponent(Text):
-    def verification(self):
-        self.text = f"Opponent's level: {Opponent.level}"
-        super().verification()
-
-
 class Score(Text):
     def verification(self):
-        self.text = f"{self.master.killed} kills"
+        self.text = f"kills: {self.master.killed}"
         super().verification()
 
 
@@ -245,7 +239,6 @@ class Static(Primitive):
     def __init__(self, x, y, img):
         super().__init__(x, y)
         Static.memory.append(self)
-
         self.img = img
 
     def __repr__(self):
@@ -259,7 +252,7 @@ class Static(Primitive):
         Static.memory.remove(self)
 
     @classmethod
-    def initialize_instances(cls, amount=settings["number_of_plants"], area=plays_area):
+    def initialize_instances(cls, amount, area=plays_area):
         for i in range(amount):
             index = {
                 "x": random(-area[0]//2, area[0]//2),
@@ -272,6 +265,10 @@ class Static(Primitive):
 
 class Plants(Static):
     images = get_files("statics\plants")
+
+
+class Corpse(Static):
+    images = complement_forms(get_files("statics\corpse"))
 
 
 class GameplayEntity(Primitive):
@@ -333,14 +330,12 @@ class GameplayEntity(Primitive):
 class Weapon(GameplayEntity):
     def __init__(self, master=None, x=0, y=0, vector=1, name=None, damage=None, health=None, speed=None, discarding_prey=None, img=None, status="common"):
         if status == "common":
-            #При отсутсвии значений ставим среднее по классу
             if name is None: name = self.__class__.name
             if health is None: health = self.__class__.health
             if speed is None: speed = self.__class__.speed
             if damage is None: self.__class__.damage
             if discarding_prey is None: self.__class__.discarding_prey
         elif status == "unique":
-            #При отсутсвии значений рандомим их опираясь на среднеклассовые
             if name is None: name = choice(names["weapons"])
             if health is None: health = random(self.__class__.health-settings["factor_of_unique_weapons"]//2, self.__class__.health+settings["factor_of_unique_weapons"]//2)
             if speed is None: speed = random(self.__class__.speed-settings["factor_of_unique_weapons"]//2, self.__class__.speed+settings["factor_of_unique_weapons"]//2)
@@ -431,6 +426,7 @@ class Scythe(Weapon):
     damage = 17
     speed = 5
     discarding_prey = 95
+
 
 #Персонажи как класс
 class Hunter(GameplayEntity):
@@ -703,6 +699,7 @@ class Hunter(GameplayEntity):
         if self.indicators is not None:
             for item in self.indicators:
                 item._dying()
+        Corpse(x=self.x, y=self.y, img=Corpse.images[str(self.vector)])
         super()._dying()
 
     def weapon_coordinates(self):

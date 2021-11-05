@@ -34,10 +34,9 @@ def set_game_scene():
 
     if settings["hud"]:
         Score(x=20, y=40, text="", movable=False, eternal=True, master=Hero)
-        LevelOfOpponent(x=app_win[0]-185, y=15, text="", movable=False, eternal=True)
         SelectedWeaponsIndex(x=20, y=15, text="", movable=False, eternal=True, master=Hero)
 
-    if settings["plants"]: Plants.initialize_instances()
+    if settings["plants"]: Plants.initialize_instances(amount=settings["number_of_plants"])
 
 
 draw_queue = [Abstraction, Static, GameplayEntity, Hud]
