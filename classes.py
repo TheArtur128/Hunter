@@ -1,3 +1,5 @@
+from sys import exit
+
 from data import *
 
 
@@ -726,6 +728,11 @@ class Hunter(GameplayEntity):
 #Одноэкземплярный класс
 class Player(Hunter):
     img = Hunter.skins["blue"]
+    hero = None
+
+    def __init__(self, name, x, y, health=100, speed=5, vector=1, weapon="random", weapon_status="common", img=None):
+        super().__init__(name=name, x=x, y=y, health=health, speed=speed, vector=vector, weapon=weapon, weapon_status=weapon_status, img=img)
+        Player.hero = self
 
     def verification(self):
         super().verification()
@@ -733,8 +740,7 @@ class Player(Hunter):
 
     def _dying(self):
         super()._dying()
-        global exit
-        exit = True
+        Player.hero = None
         Text(text="The End", x=176, y=150, frames_to_death=time_to_exit, movable=False, size=80)
         Text(text="Again?", x=285, y=235, frames_to_death=time_to_exit, movable=False, size=21)
 
@@ -774,21 +780,21 @@ class Opponent(Hunter):
         for prey in Primitive.memory:
             if prey.__class__ in presence_in_inheritance(Player):
                 if self.weapon is not None and self.action != "stun":
-                    self.move(prey, direction=True)
+                    self._move(prey, direction=True)
                     self.waiting_attack -= 1
                     if self.waiting_attack <= 0:
                         self.action = "chop"
                         self.waiting_attack = self.__class__.waiting_attack
                     break
                 else:
-                    self.move(prey, direction=False)
+                    self._move(prey, direction=False)
 
         if self.charge_level["dash"]["real"] >= self.charge_level["dash"]["max"]:
             self.action = "dash"
 
         super().verification()
 
-    def move(self, prey, direction=True):
+    def _move(self, prey, direction=True):
         if self.x > (prey.x+prey.size[0]//2): self.movement["left"] = direction
         else: self.movement["left"] = not direction
 
@@ -805,3 +811,164 @@ class Opponent(Hunter):
         super()._dying()
         random_place = Opponent.spawn_places[random(0, len(Opponent.spawn_places))]
         Opponent(x=random_place[0], y=random_place[1])
+
+    @classmethod
+    def reset_level_progress(cls):
+        cls.sum_all = 0
+        cls.level = 1
+        cls.score_for_next_level = -1
+
+
+class App:
+    def __init__(self, size, icon, caption, music_catalog, FPS, time_to_exit):
+        self.__caption = caption
+        self.__size = size
+        self.__time = True
+        self.__time_to_exit = {"real": time_to_exit, "full": time_to_exit}
+        self.__preparation_for_the_exit = False
+        self.__FPS = FPS
+        self.__icon = icon
+        self.__music_catalog = music_catalog
+
+    def __app_creation(self):
+        self.__window = pygame.display.set_mode(self.__size)
+        self.__clock = pygame.time.Clock()
+        pygame.display.set_icon(self.__icon)
+        pygame.display.set_caption(self.__caption)
+        pygame.mixer.music.load(self.__music_catalog)
+
+    def __set_start_scene(self):
+        pygame.mixer.music.play(loops=-1)
+        pygame.mixer.music.set_volume(0.5)
+
+        for class_ in presence_in_inheritance(Primitive, "memory"):
+            class_.memory = []
+
+        self.__time_to_exit["real"] = self.__time_to_exit["full"]
+
+        Player("Main Hero", tithe_win[0]*settings["factor_of_camera_width"], app_win[1]//2 - 40, speed=7, vector=3)
+
+        Opponent.reset_level_progress()
+        Opponent(app_win[0] - tithe_win[0]*settings["factor_of_camera_width"] - 80, app_win[1]//2 - 40, vector=7)
+
+        GameZone(x=-plays_area[0]//2, y=-plays_area[1]//2, width=plays_area[0], height=plays_area[1])
+        Camera(
+            x=(app_win[0]-camera_area["width"])//2,
+            y=(app_win[1]-camera_area["height"])//2,
+            width=camera_area["width"],
+            height=camera_area["height"],
+            master=Player.hero
+        )
+
+        if settings["hud"]:
+            Score(x=20, y=40, text="", movable=False, eternal=True, master=Player.hero)
+            SelectedWeaponsIndex(x=20, y=15, text="", movable=False, eternal=True, master=Player.hero)
+
+        if settings["plants"]: Plants.initialize_instances(amount=settings["number_of_plants"])
+
+    def __button_maintenance(self):
+        for action in pygame.event.get():
+            if action.type == pygame.QUIT:
+                self.stop()
+
+            if Player.hero is not None:
+                if action.type == pygame.MOUSEBUTTONDOWN:
+                    if action.button == 1:
+                        Player.hero.action = "chop"
+                    if action.button == 3:
+                        Player.hero.action = "dash"
+
+                if action.type == pygame.KEYDOWN:
+                    if action.key in key["player"]["ATTACK"]:
+                        Player.hero.action = "chop"
+
+                    if action.key in key["player"]["PAUSE"]:
+                        if time:
+                            time = False
+                            pygame.mixer.music.pause()
+                        else:
+                            time = True
+                            pygame.mixer.music.unpause()
+
+                    if action.key in key["player"]["RUSH"]:
+                        Player.hero.action = "dash"
+
+                    if action.key in key["player"]["WEAPON_CHANGE"]:
+                        Player.hero.action = "weapon-change"
+
+                    if action.key in key["player"]["LEFT"]:
+                        Player.hero.movement["left"] = True
+                    if action.key in key["player"]["RIGHT"]:
+                        Player.hero.movement["right"] = True
+
+                    if action.key in key["player"]["UP"]:
+                        Player.hero.movement["up"] = True
+                    if action.key in key["player"]["DOWN"]:
+                        Player.hero.movement["down"] = True
+
+                if action.type == pygame.KEYUP:
+                    if action.key in key["player"]["LEFT"]:
+                        Player.hero.movement["left"] = False
+                    if action.key in key["player"]["RIGHT"]:
+                        Player.hero.movement["right"] = False
+
+                    if action.key in key["player"]["UP"]:
+                        Player.hero.movement["up"] = False
+                    if action.key in key["player"]["DOWN"]:
+                        Player.hero.movement["down"] = False
+            else:
+                if action.type == pygame.KEYDOWN:
+                    if action.key in key["menu"]["AGAIN"]:
+                        self.__set_start_scene()
+
+    def __computation_for_all_objects(self):
+        for item in Primitive.memory:
+            if time:
+                try:
+                    item.verification()
+                except Exception as error:
+                    if debug_mode and not exit:
+                        try: log.append(f"from verification, {item}: {type(error)} {error}")
+                        except AttributeError: log.append(f"from verification: {type(error)} {error}")
+
+    def __render(self):
+        self.__window.fill((color["emptiness_of_map"]))
+        for class_ in self.__draw_queue:
+            for item in class_.memory:
+                try:
+                    item.draw(self.__window)
+                    if debug_mode and item.__class__ in presence_in_inheritance(GameplayEntity):
+                        for hitbox in item.hitbox:
+                            pygame.draw.rect(self.__window, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
+                except Exception as error:
+                    if debug_mode and not exit:
+                        try: log.append(f"from draw, {item}: {type(error)} {error}")
+                        except AttributeError: log.append(f"from draw: {type(error)} {error}")
+
+        if not self.__time:
+            self.__window.blit(veil, (0, 0))
+
+        if Player.hero is None and self.__time_to_exit["real"]:
+            if debug_mode: print(f"{round(self.__time_to_exit['real']/FPS, 2)} seconds left until the game closes")
+            self.__window.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 80).render("The End", True, color["text"]), (176, 150))
+            self.__window.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 21).render("Again?", True, color["text"]), (285, 235))
+            self.__time_to_exit["real"] -= 1
+            if self.__time_to_exit["real"] <= 0:
+                self.stop()
+
+        pygame.display.update()
+
+    def run(self):
+        self.__draw_queue = [Abstraction, Static, GameplayEntity, Hud]
+        self.__app_creation()
+        self.__set_start_scene()
+
+        while True:
+            self.__clock.tick(self.__FPS)
+            self.__button_maintenance()
+            self.__computation_for_all_objects()
+            self.__render()
+
+    def stop(self):
+        pygame.quit()
+        exit()

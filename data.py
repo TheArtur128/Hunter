@@ -118,6 +118,8 @@ debug_mode = settings["debug_mode"]
 
 FPS = 30
 
+time_to_exit = FPS * settings["seconds_to_exit"]
+
 app_win = settings["window"]
 
 plays_area = [app_win[0]*settings["factor_plays_area"], app_win[1]*settings["factor_plays_area"]]
