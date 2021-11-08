@@ -1,4 +1,5 @@
 from sys import exit
+from datetime import datetime
 
 from data import *
 
@@ -819,16 +820,55 @@ class Opponent(Hunter):
         cls.score_for_next_level = -1
 
 
+class Logger:
+    def __init__(self):
+        self.__logs = []
+
+    def new_log(self, log_class, *atr):
+        self.__logs.append(log_class(*atr))
+
+    def show_all_logs(self):
+        for log in self.__logs:
+            print(log)
+
+    def clear_my_logs(self):
+        for log in self.__logs:
+            self.__logs.remove(log)
+            log.clear()
+
+    @property
+    def logs(self):
+        return self.__logs
+
+
+class GameLog:
+    def __init__(self, *atr):
+        self.update(*atr)
+
+    def __str__(self):
+        return f"{self.__prefix}. {self.__text} - {self.__time_of_creation}"
+
+    def update(self, prefix, text, time_flag=True):
+        self.__prefix = prefix
+        self.__text = text
+        self.__time_of_creation = datetime.now() if time_flag else None
+
+    def clear(self):
+        self.__dict__ = {}
+
+
 class App:
-    def __init__(self, size, icon, caption, music_catalog, FPS, time_to_exit):
+    def __init__(self, size, icon, caption, music_catalog, FPS, time_to_exit, debugging):
         self.__caption = caption
         self.__size = size
+        self.__debugging = debugging
         self.__time = True
         self.__time_to_exit = {"real": time_to_exit, "full": time_to_exit}
         self.__preparation_for_the_exit = False
         self.__FPS = FPS
         self.__icon = icon
         self.__music_catalog = music_catalog
+        self.__logger = Logger()
 
     def __app_creation(self):
         self.__window = pygame.display.set_mode(self.__size)
@@ -883,11 +923,11 @@ class App:
                         Player.hero.action = "chop"
 
                     if action.key in key["player"]["PAUSE"]:
-                        if time:
-                            time = False
+                        if self.__time:
+                            self.__time = False
                             pygame.mixer.music.pause()
                         else:
-                            time = True
+                            self.__time = True
                             pygame.mixer.music.unpause()
 
                     if action.key in key["player"]["RUSH"]:
@@ -922,14 +962,17 @@ class App:
                         self.__set_start_scene()
 
     def __computation_for_all_objects(self):
-        for item in Primitive.memory:
-            if time:
+        for object in Primitive.memory:
+            if self.__time:
                 try:
-                    item.verification()
+                    object.verification()
                 except Exception as error:
-                    if debug_mode and not exit:
-                        try: log.append(f"from verification, {item}: {type(error)} {error}")
-                        except AttributeError: log.append(f"from verification: {type(error)} {error}")
+                    if not self.__preparation_for_the_exit:
+                        self.__logger.new_log(
+                            GameLog,
+                            str(error.__class__).replace("<class ", "").replace(">", ""),
+                            f"from verification{f' {object}' if 'name' in list(object.__dict__.keys()) else ''}: {error}"
+                        )
 
     def __render(self):
         self.__window.fill((color["emptiness_of_map"]))
@@ -937,19 +980,26 @@ class App:
             for item in class_.memory:
                 try:
                     item.draw(self.__window)
-                    if debug_mode and item.__class__ in presence_in_inheritance(GameplayEntity):
+                    if self.__debugging and item.__class__ in presence_in_inheritance(GameplayEntity):
                         for hitbox in item.hitbox:
                             pygame.draw.rect(self.__window, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
                 except Exception as error:
-                    if debug_mode and not exit:
-                        try: log.append(f"from draw, {item}: {type(error)} {error}")
-                        except AttributeError: log.append(f"from draw: {type(error)} {error}")
+                    if self.__debugging and not exit:
+                        self.__logger.new_log(
+                            GameLog,
+                            str(error.__class__).replace("<class ", "").replace(">", ""),
+                            f"from draw{f' {object}' if 'name' in list(object.__dict__.keys()) else ''}: {error}"
+                        )
 
         if not self.__time:
+            veil = pygame.Surface(app_win)
+            veil.set_alpha(132)
+            veil.fill((255, 255, 255))
+            veil.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 80).render("Pause", False, color["text"]), (210, 150))
             self.__window.blit(veil, (0, 0))
 
         if Player.hero is None and self.__time_to_exit["real"]:
-            if debug_mode: print(f"{round(self.__time_to_exit['real']/FPS, 2)} seconds left until the game closes")
+            print(f"{round(self.__time_to_exit['real']/FPS, 2)} seconds left until the game closes") if self.__debugging else None
             self.__window.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 80).render("The End", True, color["text"]), (176, 150))
             self.__window.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 21).render("Again?", True, color["text"]), (285, 235))
             self.__time_to_exit["real"] -= 1
@@ -970,5 +1020,9 @@ class App:
             self.__render()
 
     def stop(self):
+        if self.__debugging:
+            print(f"\n{len(self.__logger.logs)} error's:")
+            self.__logger.show_all_logs()
+
         pygame.quit()
         exit()

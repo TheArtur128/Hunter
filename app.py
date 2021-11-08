@@ -6,5 +6,6 @@ App(
     "Hunter",
     f"{folder_root}/material/general/soundtracks/tougenkyou alien.mp3",
     FPS,
-    time_to_exit
+    time_to_exit,
+    debug_mode
 ).run()
