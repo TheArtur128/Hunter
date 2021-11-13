@@ -40,80 +40,6 @@ class Primitive:
         return "<Abstraction>"
 
 
-class Abstraction(Primitive):
-    memory = []
-
-    def __init__(self, x, y):
-        super().__init__(x, y)
-        Abstraction.memory.append(self)
-
-
-class Wall(Abstraction):
-    def __init__(self, x, y, width, height):
-        super().__init__(x, y)
-        self.width = width
-        self.height = height
-
-    def verification(self):
-        super().verification()
-        self._working_with_objects_outside_of_self()
-
-
-class Camera(Wall):
-    def __init__(self, x, y, width, height, master):
-        super().__init__(x=x, y=y, width=width, height=height)
-        self.master = master
-
-    def _working_with_objects_outside_of_self(self):
-        coordinates_my_master = self.master._get_hitbox_by_coordinates()
-
-        if min(coordinates_my_master["x"]) < self.x:
-            for item in Primitive.memory:
-                if item is not self:
-                    item.x += self.x - min(coordinates_my_master["x"])
-
-        elif max(coordinates_my_master["x"]) > self.x+self.width:
-            for item in Primitive.memory:
-                if item is not self:
-                    item.x += self.x+self.width - max(coordinates_my_master["x"])
-
-        if min(coordinates_my_master["y"]) < self.y:
-            for item in Primitive.memory:
-                if item is not self:
-                    item.y += self.y - min(coordinates_my_master["y"])
-
-        elif max(coordinates_my_master["y"]) > self.y+self.height:
-            for item in Primitive.memory:
-                if item is not self:
-                    item.y += self.y+self.height - max(coordinates_my_master["y"])
-
-    def draw(self, surface):
-        if debug_mode:
-            pygame.draw.rect(surface, color["debug_mode"], (self.x, self.y, self.width, self.height), 1)
-        else:
-            pass
-
-
-class GameZone(Wall):
-    def _working_with_objects_outside_of_self(self):
-        for item in GameplayEntity.memory:
-            all_coordinates = item._get_hitbox_by_coordinates()
-            if min(all_coordinates["x"]) < self.x:
-                item.x += self.x - min(all_coordinates["x"])
-
-            elif max(all_coordinates["x"]) > self.x+self.width:
-                item.x += self.x+self.width - max(all_coordinates["x"])
-
-            if min(all_coordinates["y"]) < self.y:
-                item.y += self.y - min(all_coordinates["y"])
-
-            elif max(all_coordinates["y"]) > self.y+self.height:
-                item.y += self.y+self.height - max(all_coordinates["y"])
-
-    def draw(self, surface):
-        pygame.draw.rect(surface, color["background"], (self.x, self.y, self.width, self.height))
-
-
 class Hud(Primitive):
     memory = []
 
@@ -292,13 +218,13 @@ class GameplayEntity(Primitive):
         self.__vector = vector
         if img is None: self.img = self.__class__.img
         else: self.img = img
-        self.update_size()
+        self._update_size()
 
     def draw(self, surface):
         surface.blit(self.img[str(self.vector)], (self.x, self.y))
 
     def verification(self):
-        self.update_size()
+        self._update_size()
         super().verification()
         if self.health["real"] <= 0:
             self._dying()
@@ -306,7 +232,7 @@ class GameplayEntity(Primitive):
         elif self.health["real"] > self.health["max"]:
             self.health["real"] = self.health["max"]
 
-    def update_size(self):
+    def _update_size(self):
         self.__size = self.img[str(self.vector)].get_rect().size
 
     def _dying(self):
@@ -706,7 +632,7 @@ class Hunter(GameplayEntity):
         super()._dying()
 
     def weapon_coordinates(self):
-        self.weapon.update_size()
+        self.weapon._update_size()
         return {
             1: [self.size[0], 0],
             2: [self.size[0]*1.5-self.weapon.size[0], self.size[1]//2],
@@ -726,7 +652,6 @@ class Hunter(GameplayEntity):
             self.__action = state
 
 
-#Одноэкземплярный класс
 class Player(Hunter):
     img = Hunter.skins["blue"]
     hero = None
@@ -818,6 +743,96 @@ class Opponent(Hunter):
         cls.sum_all = 0
         cls.level = 1
         cls.score_for_next_level = -1
+
+
+class Abstraction(Primitive):
+    memory = []
+
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        Abstraction.memory.append(self)
+
+
+class Wall(Abstraction):
+    to_work_with_groups = []
+
+    def __init__(self, x, y, width, height):
+        super().__init__(x, y)
+        self.width = width
+        self.height = height
+
+    def _working_with_objects_outside_of_self(self):
+        pass
+
+    def _working_with_objects_inside_of_self(self):
+        pass
+
+    def verification(self):
+        super().verification()
+        self._working_with_objects_inside_of_self()
+        self._working_with_objects_outside_of_self()
+
+
+class Camera(Wall):
+    to_work_with_groups = [Primitive]
+
+    def __init__(self, x, y, width, height, master):
+        super().__init__(x=x, y=y, width=width, height=height)
+        self.master = master
+
+    def _working_with_objects_outside_of_self(self):
+        coordinates_my_master = self.master._get_hitbox_by_coordinates()
+
+        for group in self.__class__.to_work_with_groups:
+            if min(coordinates_my_master["x"]) < self.x:
+                for item in group.memory:
+                    if item is not self:
+                        item.x += self.x - min(coordinates_my_master["x"])
+
+            elif max(coordinates_my_master["x"]) > self.x+self.width:
+                for item in group.memory:
+                    if item is not self:
+                        item.x += self.x+self.width - max(coordinates_my_master["x"])
+
+            if min(coordinates_my_master["y"]) < self.y:
+                for item in group.memory:
+                    if item is not self:
+                        item.y += self.y - min(coordinates_my_master["y"])
+
+            elif max(coordinates_my_master["y"]) > self.y+self.height:
+                for item in group.memory:
+                    if item is not self:
+                        item.y += self.y+self.height - max(coordinates_my_master["y"])
+
+    def draw(self, surface):
+        if debug_mode:
+            pygame.draw.rect(surface, color["debug_mode"], (self.x, self.y, self.width, self.height), 1)
+        else:
+            pass
+
+
+class GameZone(Wall):
+    to_work_with_groups = [GameplayEntity, Static]
+
+    def _working_with_objects_outside_of_self(self):
+        for group in self.__class__.to_work_with_groups:
+            for item in group.memory:
+                all_coordinates = item._get_hitbox_by_coordinates()
+
+                if min(all_coordinates["x"]) < self.x:
+                    item.x += self.x - min(all_coordinates["x"])
+
+                elif max(all_coordinates["x"]) > self.x+self.width:
+                    item.x += self.x+self.width - max(all_coordinates["x"])
+
+                if min(all_coordinates["y"]) < self.y:
+                    item.y += self.y - min(all_coordinates["y"])
+
+                elif max(all_coordinates["y"]) > self.y+self.height:
+                    item.y += self.y+self.height - max(all_coordinates["y"])
+
+    def draw(self, surface):
+        pygame.draw.rect(surface, color["background"], (self.x, self.y, self.width, self.height))
 
 
 class Logger:
