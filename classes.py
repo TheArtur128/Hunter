@@ -357,7 +357,6 @@ class Scythe(Weapon):
     discarding_prey = 95
 
 
-#Персонажи как класс
 class Hunter(GameplayEntity):
     skins = {}
     for directory in get_catalog("person"):
@@ -672,45 +671,25 @@ class Player(Hunter):
 
 
 class Opponent(Hunter):
-    sum_all = 0
-    waiting_attack = FPS // 2
-    level = 1
-    skins_by_level = {
-        1: Hunter.skins["red"],
-        2: Hunter.skins["green"],
-        3: Hunter.skins["purple"],
-        4: Hunter.skins["gold"],
-        5: Hunter.skins["black"]
-    }
-    score_for_next_level = -1
-    spawn_places = [[x, y] for x in range(-81, app_win[0]) for y in [-81, app_win[1]]]
-    spawn_places.extend([[x, y] for x in [-81, app_win[0]] for y in range(-81, app_win[0])])
+    Opponent.set_class_attributes()
 
-    def __init__(self, x, y, name=None, health=50, speed=4, vector=1, img=None, weapon="random", weapon_status="common"):
-        Opponent.sum_all += 1
-        if name is None: name = f"Opponent {Opponent.sum_all}"
+    def __init__(self, x, y, name=None, health=100, speed=5, waiting_attack=FPS//2, vector=1, img=None, weapon="random", weapon_status="common"):
+        Opponent.total += 1
+        super().__init__(name=f"Opponent {Opponent.total}" if name is None else name, x=x, y=y, health=health, speed=speed, vector=vector, weapon=weapon, img=img)
+        self.waiting_attack = {
+            "real": waiting_attack,
+            "filled": waiting_attack
+        }
 
-        Opponent.score_for_next_level += 1
-        if Opponent.score_for_next_level >= settings["Opponents_for_new_opponent_level"] + settings["cape_for_add._opponent_level"]*Opponent.level and Opponent.level < len(Opponent.skins_by_level):
-            Opponent.level += 1
-            Opponent.score_for_next_level = 0
-
-        img = Opponent.skins_by_level[Opponent.level]
-        health += Opponent.level*50
-        speed += Opponent.level
-
-        super().__init__(name=name, x=x, y=y, health=health, speed=speed, vector=vector, weapon=weapon, img=img)
-        self.waiting_attack = self.__class__.waiting_attack
-
-    def verification(self):
+    def _bot_work(self):
         for prey in Primitive.memory:
             if prey.__class__ in presence_in_inheritance(Player):
                 if self.weapon is not None and self.action != "stun":
                     self._move(prey, direction=True)
-                    self.waiting_attack -= 1
-                    if self.waiting_attack <= 0:
+                    self.waiting_attack["real"] -= 1
+                    if self.waiting_attack["real"] <= 0:
                         self.action = "chop"
-                        self.waiting_attack = self.__class__.waiting_attack
+                        self.waiting_attack["real"] = self.waiting_attack["filled"]
                     break
                 else:
                     self._move(prey, direction=False)
@@ -718,6 +697,8 @@ class Opponent(Hunter):
         if self.charge_level["dash"]["real"] >= self.charge_level["dash"]["max"]:
             self.action = "dash"
 
+    def verification(self):
+        self._bot_work()
         super().verification()
 
     def _move(self, prey, direction=True):
@@ -733,16 +714,46 @@ class Opponent(Hunter):
         if (self.y+self.size[1]//2) < prey.y: self.movement["down"] = direction
         else: self.movement["down"] = not direction
 
-    def _dying(self):
-        super()._dying()
-        random_place = Opponent.spawn_places[random(0, len(Opponent.spawn_places))]
-        Opponent(x=random_place[0], y=random_place[1])
-
     @classmethod
-    def reset_level_progress(cls):
-        cls.sum_all = 0
-        cls.level = 1
-        cls.score_for_next_level = -1
+    def set_class_attributes(cls):
+        cls.total = 0 #Умершие включительно
+        cls.spawn_places = [[x, y] for x in range(-81, app_win[0]) for y in [-81, app_win[1]]]
+        cls.spawn_places.extend([[x, y] for x in [-81, app_win[0]] for y in range(-81, app_win[0])])
+
+
+class RedOpponent(Opponent):
+    img = Hunter.skins["red"]
+
+    def __init__(self, x, y, vector=1, weapon="random", weapon_status="common"):
+        super().__init__(health=100, speed=5, waiting_attack=FPS//2, name=None, x=x, y=y, vector=vector, weapon=weapon, img=None)
+
+
+class GreenOpponent(Opponent):
+    img = Hunter.skins["green"]
+
+    def __init__(self, x, y, vector=1, weapon="random", weapon_status="common"):
+        super().__init__(health=150, speed=6, waiting_attack=FPS//2, name=None, x=x, y=y, vector=vector, weapon=weapon, img=None)
+
+
+class PurpleOpponent(Opponent):
+    img = Hunter.skins["purple"]
+
+    def __init__(self, x, y, vector=1, weapon="random", weapon_status="common"):
+        super().__init__(health=175, speed=6, waiting_attack=FPS//2, name=None, x=x, y=y, vector=vector, weapon=weapon, img=None)
+
+
+class GoldOpponent(Opponent):
+    img = Hunter.skins["gold"]
+
+    def __init__(self, x, y, vector=1, weapon="random", weapon_status="common"):
+        super().__init__(health=200, speed=7, waiting_attack=FPS//2, name=None, x=x, y=y, vector=vector, weapon=weapon, img=None)
+
+
+class BlackOpponent(Opponent):
+    img = Hunter.skins["black"]
+
+    def __init__(self, x, y, vector=1, weapon="random", weapon_status="common"):
+        super().__init__(health=300, speed=8, waiting_attack=FPS//2, name=None, x=x, y=y, vector=vector, weapon=weapon, img=None)
 
 
 class Abstraction(Primitive):
@@ -903,7 +914,7 @@ class App:
 
         Player("Main Hero", tithe_win[0]*settings["factor_of_camera_width"], app_win[1]//2 - 40, speed=7, vector=3)
 
-        Opponent.reset_level_progress()
+        Opponent.set_class_attributes()
         Opponent(app_win[0] - tithe_win[0]*settings["factor_of_camera_width"] - 80, app_win[1]//2 - 40, vector=7)
 
         GameZone(x=-plays_area[0]//2, y=-plays_area[1]//2, width=plays_area[0], height=plays_area[1])
