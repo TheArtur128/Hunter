@@ -671,7 +671,9 @@ class Player(Hunter):
 
 
 class Opponent(Hunter):
-    Opponent.set_class_attributes()
+    total = 0 #Умершие включительно
+    spawn_places = [[x, y] for x in range(-81, app_win[0]) for y in [-81, app_win[1]]]
+    spawn_places.extend([[x, y] for x in [-81, app_win[0]] for y in range(-81, app_win[0])])
 
     def __init__(self, x, y, name=None, health=100, speed=5, waiting_attack=FPS//2, vector=1, img=None, weapon="random", weapon_status="common"):
         Opponent.total += 1
@@ -680,6 +682,11 @@ class Opponent(Hunter):
             "real": waiting_attack,
             "filled": waiting_attack
         }
+
+    def _dying(self):
+        super()._dying()
+        point = choice(Opponent.spawn_places)
+        self.get_class_of_opponent_by_level()(x=point[0], y=point[1])
 
     def _bot_work(self):
         for prey in Primitive.memory:
@@ -715,45 +722,57 @@ class Opponent(Hunter):
         else: self.movement["down"] = not direction
 
     @classmethod
-    def set_class_attributes(cls):
-        cls.total = 0 #Умершие включительно
-        cls.spawn_places = [[x, y] for x in range(-81, app_win[0]) for y in [-81, app_win[1]]]
-        cls.spawn_places.extend([[x, y] for x in [-81, app_win[0]] for y in range(-81, app_win[0])])
+    def get_level(cls):
+        return cls.total // (settings["Opponents_for_new_opponent_level"] + settings["cape_for_add._opponent_level"]*(cls.total//settings["Opponents_for_new_opponent_level"]))
+
+    @staticmethod
+    def get_class_of_opponent_by_level(level: int = None):
+        opponents_by_level = {
+            0: RedOpponent,
+            1: GreenOpponent,
+            2: PurpleOpponent,
+            3: GoldOpponent,
+            4: BlackOpponent
+        }
+        try:
+            return opponents_by_level[Opponent.get_level() if level is None else level]
+        except IndexError:
+            return opponents_by_level[list(opponents_by_level.keys())[-1]]
 
 
 class RedOpponent(Opponent):
     img = Hunter.skins["red"]
 
-    def __init__(self, x, y, vector=1, weapon="random", weapon_status="common"):
-        super().__init__(health=100, speed=5, waiting_attack=FPS//2, name=None, x=x, y=y, vector=vector, weapon=weapon, img=None)
+    def __init__(self, x, y, name=None, vector=1, weapon="random", weapon_status="common"):
+        super().__init__(health=100, speed=5, waiting_attack=FPS//2, name=name, x=x, y=y, vector=vector, weapon=weapon, img=None)
 
 
 class GreenOpponent(Opponent):
     img = Hunter.skins["green"]
 
-    def __init__(self, x, y, vector=1, weapon="random", weapon_status="common"):
-        super().__init__(health=150, speed=6, waiting_attack=FPS//2, name=None, x=x, y=y, vector=vector, weapon=weapon, img=None)
+    def __init__(self, x, y, name=None, vector=1, weapon="random", weapon_status="common"):
+        super().__init__(health=150, speed=6, waiting_attack=FPS//2, name=name, x=x, y=y, vector=vector, weapon=weapon, img=None)
 
 
 class PurpleOpponent(Opponent):
     img = Hunter.skins["purple"]
 
-    def __init__(self, x, y, vector=1, weapon="random", weapon_status="common"):
-        super().__init__(health=175, speed=6, waiting_attack=FPS//2, name=None, x=x, y=y, vector=vector, weapon=weapon, img=None)
+    def __init__(self, x, y, name=None, vector=1, weapon="random", weapon_status="common"):
+        super().__init__(health=175, speed=6, waiting_attack=FPS//2, name=name, x=x, y=y, vector=vector, weapon=weapon, img=None)
 
 
 class GoldOpponent(Opponent):
     img = Hunter.skins["gold"]
 
-    def __init__(self, x, y, vector=1, weapon="random", weapon_status="common"):
-        super().__init__(health=200, speed=7, waiting_attack=FPS//2, name=None, x=x, y=y, vector=vector, weapon=weapon, img=None)
+    def __init__(self, x, y, name=None, vector=1, weapon="random", weapon_status="common"):
+        super().__init__(health=200, speed=7, waiting_attack=FPS//2, name=name, x=x, y=y, vector=vector, weapon=weapon, img=None)
 
 
 class BlackOpponent(Opponent):
     img = Hunter.skins["black"]
 
-    def __init__(self, x, y, vector=1, weapon="random", weapon_status="common"):
-        super().__init__(health=300, speed=8, waiting_attack=FPS//2, name=None, x=x, y=y, vector=vector, weapon=weapon, img=None)
+    def __init__(self, x, y, name=None, vector=1, weapon="random", weapon_status="common"):
+        super().__init__(health=300, speed=8, waiting_attack=FPS//2, name=name, x=x, y=y, vector=vector, weapon=weapon, img=None)
 
 
 class Abstraction(Primitive):
@@ -914,8 +933,8 @@ class App:
 
         Player("Main Hero", tithe_win[0]*settings["factor_of_camera_width"], app_win[1]//2 - 40, speed=7, vector=3)
 
-        Opponent.set_class_attributes()
-        Opponent(app_win[0] - tithe_win[0]*settings["factor_of_camera_width"] - 80, app_win[1]//2 - 40, vector=7)
+        Opponent.total = 0
+        Opponent.get_class_of_opponent_by_level()(x=app_win[0] - tithe_win[0]*settings["factor_of_camera_width"] - 80, y=app_win[1]//2 - 40, vector=7)
 
         GameZone(x=-plays_area[0]//2, y=-plays_area[1]//2, width=plays_area[0], height=plays_area[1])
         Camera(
