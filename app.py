@@ -7,5 +7,6 @@ App(
     f"{folder_root}/material/general/soundtracks/tougenkyou alien.mp3",
     FPS,
     time_to_exit,
-    debug_mode
+   	debug_mode,
+    local_logger
 ).run()

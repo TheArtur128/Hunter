@@ -4,10 +4,10 @@ from datetime import datetime
 from data import *
 
 
-#Суперкласс всего что может вычесляться
 class Primitive:
-    #Хранилище всех экземпляров для их вычислений
-    memory = []
+    '''Суперкласс всего что может вычесляться'''
+    
+    memory = [] #Хранилище всех экземпляров для их вычислений
 
     def __init__(self, x, y):
         Primitive.memory.append(self)
@@ -32,7 +32,8 @@ class Primitive:
         return coordinates
 
     def _dying(self):
-        if debug_mode and not self in Hud.memory: print(f"{self} died")
+        log = local_logger.new_log(Log, f"{self} died")
+        if debug_mode: print(log)
         self.__dict__ = {}
         Primitive.memory.remove(self)
 
@@ -206,7 +207,8 @@ class GameplayEntity(Primitive):
     def __init__(self, name, x, y, speed, vector, health, img=None):
         GameplayEntity.memory.append(self)
         self.name = name
-        if debug_mode: print(f"{self} initialized")
+        log = local_logger.new_log(Log, f"{self} initialized")
+        if debug_mode: print(log)
         super().__init__(x, y)
         self.speed = speed
         self.health = {
@@ -405,16 +407,19 @@ class Hunter(GameplayEntity):
 
         if settings["hud"]: Text(text=str(damage), x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["show_damage"])
         self.health["real"] -= damage
-        if debug_mode: print(f"{self} suffered damage equal to {damage}, {self} have {self.health['real']} HP")
+        log = local_logger.new_log(Log, f"{self} suffered damage equal to {damage}, {self} have {self.health['real']} HP")
+        if debug_mode: print(log)
 
         if self.health["real"] <= 0: return "died"
         else: return "alive"
 
     def __hit(self, prey, damage):
-        if debug_mode: print(f"{self} hit {prey}!")
+        log = local_logger.new_log(Log, f"{self} hit {prey}!")
+        if debug_mode: print(log)
         if prey.__taking_damage(damage) == "died":
             if settings["drain_health_on_kill"]:
-                if debug_mode: print(f"{self} got {prey.health['max']//10} hp from the {prey}")
+                log = local_logger.new_log(Log, f"{self} got {prey.health['max']//10} hp from the {prey}")
+                if debug_mode: print(log)
                 self.health["real"] += prey.health["max"]//10
             self.killed += 1
 
@@ -494,7 +499,8 @@ class Hunter(GameplayEntity):
             if self.vector in (6, 7, 8):
                 self.x -= self.speed * settings["dash_multiplier"]
 
-            if debug_mode: print(f"{self} made a rush")
+            log = local_logger.new_log(Log, f"{self} made a rush")
+            if debug_mode: print(log)
 
         self.__action = "quiet"
 
@@ -575,7 +581,8 @@ class Hunter(GameplayEntity):
                 if item.master is None:
                     for hitbox_point in item.hitbox:
                         if hitbox_point in self.hitbox:
-                            if debug_mode: print(f"{self} got {item}")
+                            log = local_logger.new_log(Log, f"{self} got {item}")
+                            if debug_mode: print(log)
                             self.inventory.append(item)
                             Primitive.memory.remove(item)
                             GameplayEntity.memory.remove(item)
@@ -587,7 +594,8 @@ class Hunter(GameplayEntity):
                 new_weapon = self.inventory[0]
             else:
                 new_weapon = self.inventory[self.inventory.index(self.weapon)+1]
-            if debug_mode: print(f"{self} put the {new_weapon} into service")
+            log = local_logger.new_log(Log, f"{self} put the {new_weapon} into service")
+            if debug_mode: print(log)
             Primitive.memory.remove(self.weapon)
             GameplayEntity.memory.remove(self.weapon)
             new_weapon.buffer_of_vector = 0
@@ -866,54 +874,79 @@ class GameZone(Wall):
 
 
 class Logger:
+    file_start_time = datetime.now()
+
     def __init__(self):
         self.__logs = []
 
-    def new_log(self, log_class, *atr):
-        self.__logs.append(log_class(*atr))
+    def new_log(self, log_class, *log_atrs):
+        log = log_class(*log_atrs)
+        self.__logs.append(log)
+        return log
 
-    def show_all_logs(self):
+    def show_logs(self):
         for log in self.__logs:
             print(log)
 
-    def clear_my_logs(self):
+    def clear_logs(self):
         for log in self.__logs:
             self.__logs.remove(log)
             log.clear()
+
+    def write_logs_to_file(self, file_name="logs.log"):
+        if not settings["overwrite_log_file"]:
+            try:
+                with open(file_name) as file:
+                    if file.read().replace(" ", "") == "":
+                        file_is_empty = True
+                    else:
+                        file_is_empty = False
+            except FileNotFoundError:
+                file_is_empty = True
+        else:
+            with open(file_name, "w"):
+                pass
+            file_is_empty = True        
+
+        with open(file_name, "a") as file:
+            file.write(("\n" if not file_is_empty else "") + "logs from " + str(Logger.file_start_time))
+            for log in self.logs:
+                file.write("\n" + str(log))
+                    
 
     @property
     def logs(self):
         return self.__logs
 
 
-class GameLog:
+class Log:
     def __init__(self, *atr):
         self.update(*atr)
 
-    def __str__(self):
-        return f"{self.__prefix}. {self.__text} - {self.__time_of_creation}"
+    def update(self, text, time_flag=True):
+        self.__date = {
+            "text": text,
+            "time of creation": datetime.now() - Logger.file_start_time if time_flag else None #Время от старта файла
+        }
 
-    def update(self, prefix, text, time_flag=True):
-        self.__prefix = prefix
-        self.__text = text
-        self.__time_of_creation = datetime.now() if time_flag else None
+    def __str__(self):
+        return f"[{self.__date['time of creation'] if self.__date['time of creation'] is not None else ''}] {self.__date['text']}"
 
     def clear(self):
         self.__dict__ = {}
 
 
 class App:
-    def __init__(self, size, icon, caption, music_catalog, FPS, time_to_exit, debugging):
+    def __init__(self, size, icon, caption, music_catalog, FPS, time_to_exit, debugging, logger=None):
         self.__caption = caption
         self.__size = size
         self.__debugging = debugging
         self.__time = True
         self.__time_to_exit = {"real": time_to_exit, "full": time_to_exit}
-        self.__preparation_for_the_exit = False
         self.__FPS = FPS
         self.__icon = icon
         self.__music_catalog = music_catalog
-        self.__logger = Logger()
+        self.__logger = logger
 
     def __app_creation(self):
         self.__window = pygame.display.set_mode(self.__size)
@@ -1011,13 +1044,14 @@ class App:
             if self.__time:
                 try:
                     object.verification()
+
                 except Exception as error:
-                    if not self.__preparation_for_the_exit:
-                        self.__logger.new_log(
-                            GameLog,
-                            str(error.__class__).replace("<class ", "").replace(">", ""),
-                            f"from verification{f' {object}' if 'name' in list(object.__dict__.keys()) else ''}: {error}"
-                        )
+                    error_name = str(error.__class__).replace('<class ', '').replace('>', '')
+                    log = self.__logger.new_log(
+                         Log,
+                        f"from verification {object.__class__} instance: {error_name} {error}"
+                    )
+                    print(log) if self.__debugging else None
 
     def __render(self):
         self.__window.fill((color["emptiness_of_map"]))
@@ -1028,13 +1062,15 @@ class App:
                     if self.__debugging and item.__class__ in presence_in_inheritance(GameplayEntity):
                         for hitbox in item.hitbox:
                             pygame.draw.rect(self.__window, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
+
                 except Exception as error:
                     if self.__debugging and not exit:
-                        self.__logger.new_log(
-                            GameLog,
-                            str(error.__class__).replace("<class ", "").replace(">", ""),
-                            f"from draw{f' {object}' if 'name' in list(object.__dict__.keys()) else ''}: {error}"
+                        error_name = str(error.__class__).replace('<class ', '').replace('>', '')
+                        log = self.__logger.new_log(
+                            Log,
+                            f"from draw {object.__class__} instance: {error_name} {error}"
                         )
+                        print(log) if self.__debugging else None
 
         if not self.__time:
             veil = pygame.Surface(app_win)
@@ -1065,9 +1101,9 @@ class App:
             self.__render()
 
     def stop(self):
-        if self.__debugging:
-            print(f"\n{len(self.__logger.logs)} error's:")
-            self.__logger.show_all_logs()
-
+        if settings["remember_logs"]: self.__logger.write_logs_to_file()
         pygame.quit()
         exit()
+
+
+local_logger = Logger()
