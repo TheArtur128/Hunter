@@ -55,14 +55,15 @@ class Hud(Primitive):
 
     def verification(self):
         super().verification()
-        if not self.master in Primitive.memory:
-            self.master = None
-
-        if self.master is not None:
-            self.x, self.y = self.master.x, self.master.y
+        if not self.master in Primitive.memory and self.master is not None:
+            self._dying()
+            return None
 
         if not self.movable:
             self.x, self.y = self.initial_coordinates
+
+        elif self.master is not None:
+            self.x, self.y = self.master.x, self.master.y
 
         if not self.eternal:
             self.frames_to_death -= 1
@@ -79,51 +80,102 @@ class Hud(Primitive):
 
 
 class Indicator(Hud):
-    def __init__(self, width, master=None, x=0, y=0, height=3, movable=True, eternal=True):
-        super().__init__(x=x, y=y, movable=movable, master=master, eternal=eternal)
-        self.width = width
+    def __init__(self, full_color=None, color_of_absence=color["absence_line"], extra_color=color["extra_line"], max_width=None, height=3, shift=[0, 0], master=None, x=0, y=0, movable=True, eternal=True, frames_to_death=FPS):
+        super().__init__(x=x, y=y, movable=movable, master=master, eternal=eternal, frames_to_death=frames_to_death)
+        self.max_width = self.master.size[0] if max_width is None else max_width
         self.height = height
+        self.shift = shift
+        self.colors = {
+            "absence": color_of_absence,
+            "full": self.__class__.color if full_color is None else full_color,
+            "extra": extra_color
+        }
+
+    @property
+    def width(self):
+        return self.max_width
+
+    @property
+    def actual_color(self):
+        return self.colors["full"]
+
+    @property
+    def background_color(self):
+        return self.colors["absence"]
+
+    def draw(self, surface):
+        if self.width > self.max_width:
+            raise AttributeError ("property \"width\" returns a value greater than the maximum")
+
+        pygame.draw.rect(
+            surface,
+            self.background_color,
+            (
+                self.x + self.shift[0],
+                self.y + self.shift[1],
+                self.max_width,
+                self.height
+            ),
+        )
+
+        pygame.draw.rect(
+            surface,
+            self.actual_color,
+            (
+                self.x + self.shift[0],
+                self.y + self.shift[1],
+                self.width,
+                self.height
+            ),
+        )
 
 
 class HealthIndicator(Indicator):
-    def draw(self, surface):
-        if self.master.health["real"] > self.master.health["max"] // 2:
-            pygame.draw.rect(surface, color["health_line"], (self.x, self.y-12, self.width, self.height))
-            line_color = color["extra_line"]
-            width_index = 1
+    color = color["health_line"]
+
+    def __init__(self, master, max_width=None, height=3, shift=[0, -12], x=0, y=0, movable=True, eternal=True, frames_to_death=FPS):
+        super().__init__(master=master, height=height, shift=shift, x=x, y=y, movable=movable, eternal=eternal, frames_to_death=frames_to_death)
+
+    @property
+    def width(self):
+        if self.master.health_percentage <= 0.5:
+            percent = self.master.health_percentage * 2
         else:
-            pygame.draw.rect(surface, color["absence_line"], (self.x, self.y-12, self.width, self.height))
-            more_overall_health = False
-            line_color = color["health_line"]
-            width_index = 0
+            percent = (self.master.health_percentage - 0.5)*2
 
-        pygame.draw.rect(
-            surface,
-            line_color,
-            (self.x,
-            self.y-12,
-            int(self.width*(self.master.health["real"]/(self.master.health["max"]//2) - width_index)),
-            self.height),
-        )
+        return int(self.max_width * percent)
 
-
-class RushIndicator(Indicator):
-    def draw(self, surface):
-        pygame.draw.rect(surface, color["absence_line"], (self.x, self.y-7, self.width, self.height))
-
-        if self.master.charge_level["dash"]["real"] < self.master.charge_level["dash"]["max"]:
-            line_color = color["dash_line"]
+    @property
+    def actual_color(self):
+        if self.master.health_percentage <= 0.5:
+            return self.colors["full"]
         else:
-            line_color = color["extra_line"]
+            return self.colors["extra"]
 
-        pygame.draw.rect(
-            surface,
-            line_color,
-            (self.x,
-            self.y-7,
-            self.width*(self.master.charge_level["dash"]["real"]/self.master.charge_level["dash"]["max"]),
-            self.height),
-        )
+    @property
+    def background_color(self):
+        if self.master.health_percentage <= 0.5:
+            return self.colors["absence"]
+        else:
+            return self.colors["full"]
+
+
+class DashIndicator(Indicator):
+    color = color["dash_line"]
+
+    def __init__(self, master, max_width=None, height=1, shift=[0, -7], x=0, y=0, movable=True, eternal=True, frames_to_death=FPS):
+        super().__init__(master=master, height=height, shift=shift, x=x, y=y, movable=movable, eternal=eternal, frames_to_death=frames_to_death)
+
+    @property
+    def width(self):
+        return int(self.max_width * self.master.get_charge_percentage("dash"))
+
+    @property
+    def actual_color(self):
+        if self.master.get_charge_percentage("dash") != 1:
+            return self.colors["full"]
+        else:
+            return self.colors["extra"]
 
 
 class Text(Hud):
@@ -144,20 +196,16 @@ class Text(Hud):
         surface.blit(self.drawing_data, (self.x, self.y))
 
 
-class Score(Text):
+class KillScore(Text):
     def verification(self):
         self.text = f"kills: {self.master.killed}"
         super().verification()
 
 
-class SelectedWeaponsIndex(Text):
+class InformationAboutSelectedWeapon(Text):
     def verification(self):
-        if self.master.weapon is not None:
-            weapon_index = self.master.inventory.index(self.master.weapon) + 1
-            weapon_name = self.master.weapon.name
-        else:
-            weapon_index = None
-            weapon_name = ""
+        weapon_index = self.master.inventory.index(self.master.weapon) + 1 if self.master.weapon is not None else None
+        weapon_name = self.master.weapon.name if self.master.weapon is not None else ""
 
         self.text = f"{weapon_index}/{len(self.master.inventory)}: {weapon_name}"
         super().verification()
@@ -245,6 +293,10 @@ class GameplayEntity(Primitive):
         return f"<{self.name}>"
 
     @property
+    def health_percentage(self):
+        return self.health["real"] / self.health["max"]
+
+    @property
     def size(self): return self.__size
 
     @property
@@ -306,7 +358,7 @@ class Weapon(GameplayEntity):
         if self.master is not None:
             self.master.inventory.remove(self)
             self.master.weapon = None
-        if settings["hud"]: Text(text=f"{self.name} is broken", x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["broken"])
+        if settings["pop-up text"]: Text(text=f"{self.name} is broken", x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["broken"])
         super()._dying()
 
     def verification(self):
@@ -387,12 +439,8 @@ class Hunter(GameplayEntity):
         if self.weapon is not None: self.inventory.append(self.weapon)
 
         if settings["hud"]:
-            self.indicators = [
-                HealthIndicator(width=self.size[0], height=3, x=self.x, y=self.y, master=self),
-                RushIndicator(width=self.size[0], height=1, x=self.x, y=self.y, master=self)
-            ]
-        else:
-            self.indicators = None
+            HealthIndicator(master=self, height=3, shift=[0, -12])
+            DashIndicator(master=self, height=1, shift=[0, -15])
 
         self.charge_level = {
             "dash": {
@@ -405,7 +453,7 @@ class Hunter(GameplayEntity):
         if self.action == "stun" and self.weapon is not None:
             damage //= 2
 
-        if settings["hud"]: Text(text=str(damage), x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["show_damage"])
+        if settings["pop-up text"]: Text(text=str(damage), x=self.x+self.size[0]//2, y=self.y+self.size[0]//2, color=color["show_damage"])
         self.health["real"] -= damage
         log = local_logger.new_log(Log, f"{self} suffered damage equal to {damage}, {self} have {self.health['real']} HP")
         if debug_mode: print(log)
@@ -632,9 +680,6 @@ class Hunter(GameplayEntity):
     def _dying(self):
         if self.weapon is not None:
             self.weapon.master = None
-        if self.indicators is not None:
-            for item in self.indicators:
-                item._dying()
         Corpse(x=self.x, y=self.y, img=Corpse.images[str(self.vector)])
         super()._dying()
 
@@ -650,6 +695,9 @@ class Hunter(GameplayEntity):
             7: [0, -self.weapon.size[1]],
             8: [self.size[0]//2, -self.size[1]//2]
         }
+
+    def get_charge_percentage(self, action):
+        return self.charge_level[action]["real"] / self.charge_level[action]["max"]
 
     @property
     def action(self): return self.__action
@@ -979,8 +1027,8 @@ class App:
         )
 
         if settings["hud"]:
-            Score(x=20, y=40, text="", movable=False, eternal=True, master=Player.hero)
-            SelectedWeaponsIndex(x=20, y=15, text="", movable=False, eternal=True, master=Player.hero)
+            KillScore(x=20, y=40, text="", movable=False, eternal=True, master=Player.hero)
+            InformationAboutSelectedWeapon(x=20, y=15, text="", movable=False, eternal=True, master=Player.hero)
 
         if settings["plants"]: Plants.initialize_instances(amount=settings["number_of_plants"])
 
@@ -1064,13 +1112,12 @@ class App:
                             pygame.draw.rect(self.__window, color["debug_mode"], (hitbox[0], hitbox[1], 1, 1))
 
                 except Exception as error:
-                    if self.__debugging and not exit:
-                        error_name = str(error.__class__).replace('<class ', '').replace('>', '')
-                        log = self.__logger.new_log(
-                            Log,
-                            f"from draw {object.__class__} instance: {error_name} {error}"
-                        )
-                        print(log) if self.__debugging else None
+                    error_name = str(error.__class__).replace('<class ', '').replace('>', '')
+                    log = self.__logger.new_log(
+                        Log,
+                        f"from draw {item.__class__} instance: {error_name} {error}"
+                    )
+                    if self.__debugging: print(log)
 
         if not self.__time:
             veil = pygame.Surface(app_win)
@@ -1080,7 +1127,8 @@ class App:
             self.__window.blit(veil, (0, 0))
 
         if Player.hero is None and self.__time_to_exit["real"]:
-            print(f"{round(self.__time_to_exit['real']/FPS, 2)} seconds left until the game closes") if self.__debugging else None
+            log = self.__logger.new_log(Log, f"{round(self.__time_to_exit['real']/FPS, 2)} seconds left until the game closes")
+            print(log) if self.__debugging else None
             self.__window.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 80).render("The End", True, color["text"]), (176, 150))
             self.__window.blit(pygame.font.Font(f"{folder_root}/material/general/fonts/{settings['font']}", 21).render("Again?", True, color["text"]), (285, 235))
             self.__time_to_exit["real"] -= 1

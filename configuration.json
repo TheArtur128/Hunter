@@ -3,6 +3,7 @@
     "window": [640, 430],
     "number_of_plants": 256,
     "hud": true,
+    "pop-up text": true,
     "drain_health_on_kill": true,
     "seconds_to_exit": 3,
     "plants": true,
