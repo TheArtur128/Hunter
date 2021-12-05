@@ -1,36 +1,40 @@
 {
   "settings": {
     "window": [640, 430],
-    "number_of_plants": 256,
+    "number of plants": 256,
     "hud": true,
     "pop-up text": true,
-    "drain_health_on_kill": true,
-    "seconds_to_exit": 3,
+    "drain health on kill": true,
+    "seconds to exit": 3,
     "plants": true,
-    "factor_plays_area": 5,
-    "factor_of_camera_width": 2.5,
-    "factor_of_camera_height": 2.5,
-    "font": "Urbanist-Regular.ttf",
-    "factor_of_unique_weapons": 8,
-    "spread_of_characteristics_for_unique_weapons": 33,
-    "Opponents_for_new_opponent_level": 6,
-    "cape_for_add._opponent_level": -1,
-    "dash_multiplier": 14,
-    "debug_mode": false,
-    "remember_logs": true,
-    "overwrite_log_file": true
+    "factor plays area": 5,
+    "factor of camera width": 2.5,
+    "factor of camera height": 2.5,
+    "factor of unique weapons": 8,
+    "spread of characteristics for unique weapons": 33,
+    "Opponents for new opponent level": 6,
+    "cape for add. opponent level": -1,
+    "dash multiplier": 14,
+    "debug mode": false,
+    "remember logs": true,
+    "overwrite log file": true
+  },
+
+  "files": {
+    "player skin": "blue",
+    "font": "Urbanist-Regular.ttf"
   },
 
   "color": {
     "background": [28, 147, 64],
-    "emptiness_of_map": [55, 55, 55],
+    "emptiness of map": [55, 55, 55],
     "text": [210, 210, 210],
-    "show_damage": [255, 12, 0],
-    "absence_line": [155, 155, 155],
-    "health_line": [255, 10, 50],
-    "dash_line": [255, 200, 15],
-    "extra_line": [75, 75, 80],
+    "show damage": [255, 12, 0],
+    "absence line": [155, 155, 155],
+    "health line": [255, 10, 50],
+    "dash line": [255, 200, 15],
+    "extra line": [75, 75, 80],
     "broken": [180, 50, 210],
-    "debug_mode": [255, 0, 30]
+    "debug mode": [255, 0, 30]
   }
 }

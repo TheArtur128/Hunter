@@ -16,8 +16,8 @@ def get_image(directory):
     return file
 
 
-#Парсит все файлы в словарь ключами которых являеться названия этих файлов
 def get_files(original_directory, parse_func=get_image):
+    '''Парсит все файлы в словарь ключами которых являеться названия этих файлов'''
     directory = f"{folder_root}/material/{original_directory}"
     with os.scandir(directory) as listOfEntries:
         files = {}
@@ -28,8 +28,8 @@ def get_files(original_directory, parse_func=get_image):
         return files
 
 
-#Парсит пути всех обьектов в директории в список
 def get_catalog(original_directory):
+    '''Парсит пути всех обьектов в директории в список'''
     directory = f"{folder_root}/material/{original_directory}"
     with os.scandir(directory) as listOfEntries:
         directoryes = []
@@ -57,12 +57,24 @@ def complement_forms(surfaces):
     return surfaces
 
 
+def variety_of_forms(surfaces):
+    variations = [((True, True), "vertically horizontally"), ((True, False), "horizontally"), ((False, True), "vertically")]
+    for item in get_dict_list(surfaces):
+        for variation in variations:
+            surfaces[f"{item[0]} {variation[1]} reflected"] = pygame.transform.flip(item[1], *variation[0])
+    return surfaces
+
+
 def round(vaule, number_after_point=1):
     if isinstance(vaule, float):
         return float(str(int(vaule))+ "." + str(vaule).split(".")[1][:number_after_point])
 
 
-def presence_in_inheritance(class_, atribut=None):
+def get_dict_list(dict_):
+    return [[list(dict_.keys())[i], list(dict_.values())[i]] for i in range(len(dict_))]
+
+
+def presence_in_inheritance(class_):
     classes = [class_]
     while True:
         free_classes = False
@@ -73,17 +85,23 @@ def presence_in_inheritance(class_, atribut=None):
                     free_classes = True
 
         if not free_classes:
-            if atribut is not None:
-                clear_classes = []
-                for class_ in classes:
-                    try:
-                        class_.__dict__[atribut]
-                        clear_classes.append(class_)
-                    except KeyError:
-                        pass
-                return clear_classes
+            return classes.copy()
 
-            return classes
+
+def is_there_attribute(object_, attribute: str):
+    try:
+        object_.__dict__[attribute]
+        return True
+    except KeyError:
+        return False
+
+
+def sorting_by_attribute(array: list, attribute: str):
+    for object_ in array:
+        if not is_there_attribute(object_, attribute):
+            array.remove(object_)
+
+    return array
 
 
 #Группы кнопок которые в контесте приводят к одному результату
@@ -95,7 +113,7 @@ key = {
         "UP": [pygame.K_UP, pygame.K_w],
         "DOWN": [pygame.K_DOWN, pygame.K_s],
         "WEAPON_CHANGE": [pygame.K_TAB, pygame.K_RALT, pygame.K_LALT],
-        "RUSH": [pygame.K_x],
+        "DASH": [pygame.K_x],
         "PAUSE": [pygame.K_BACKQUOTE]
     },
     "menu": {
@@ -108,25 +126,24 @@ with open(f"{folder_root}/material/general/names.json", "r") as file:
 
 with open(f"{folder_root}/configuration.json", "r") as file:
     j_soup = json.loads(file.read())
-    color = j_soup["color"]
     settings = j_soup["settings"]
+    files = j_soup["files"]
+    color = j_soup["color"]
+    
 
-#Глобальные состояния
-game = True
-time = True
-debug_mode = settings["debug_mode"]
+debug_mode = settings["debug mode"]
 
 FPS = 30
 
-time_to_exit = FPS * settings["seconds_to_exit"]
+time_to_exit = FPS * settings["seconds to exit"]
 
 app_win = settings["window"]
 
-plays_area = [app_win[0]*settings["factor_plays_area"], app_win[1]*settings["factor_plays_area"]]
+plays_area = [app_win[0]*settings["factor plays area"], app_win[1]*settings["factor plays area"]]
 
 tithe_win = [app_win[0]//10, app_win[1]//10]
 
 camera_area = {
-    "width": app_win[0] - tithe_win[0]*settings["factor_of_camera_width"]*2,
-    "height": app_win[1] - tithe_win[1]*settings["factor_of_camera_height"]*2
+    "width": app_win[0] - tithe_win[0]*settings["factor of camera width"]*2,
+    "height": app_win[1] - tithe_win[1]*settings["factor of camera height"]*2
 }
