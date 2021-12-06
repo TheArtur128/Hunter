@@ -74,7 +74,7 @@ def get_dict_list(dict_):
     return [[list(dict_.keys())[i], list(dict_.values())[i]] for i in range(len(dict_))]
 
 
-def presence_in_inheritance(class_):
+def get_family(class_):
     classes = [class_]
     while True:
         free_classes = False
@@ -117,7 +117,8 @@ key = {
         "PAUSE": [pygame.K_BACKQUOTE]
     },
     "menu": {
-        "AGAIN": [pygame.K_SPACE]
+        "AGAIN": [pygame.K_SPACE],
+        "ENABLE MINIMAP": [pygame.K_m]
     }
 }
 

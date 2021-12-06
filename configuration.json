@@ -11,13 +11,18 @@
     "factor of camera width": 2.5,
     "factor of camera height": 2.5,
     "factor of unique weapons": 8,
+    "minimap size factor": 0.035,
+    "size of objects on minimap": 2,
     "spread of characteristics for unique weapons": 33,
     "Opponents for new opponent level": 6,
     "cape for add. opponent level": -1,
     "dash multiplier": 14,
     "debug mode": false,
     "remember logs": true,
-    "overwrite log file": true
+    "overwrite log file": true,
+    "minimap": true,
+    "show minimap when pressing the key": false,
+    "minimap transparency": 0.70
   },
 
   "files": {
@@ -35,6 +40,10 @@
     "dash line": [255, 200, 15],
     "extra line": [75, 75, 80],
     "broken": [180, 50, 210],
+    "minimap": [110, 100, 110],
+    "hunters on minimap": [200, 200, 200],
+    "weapons on minimap": [245, 0, 70],
+    "corpses on minimap": [65, 65, 65],
     "debug mode": [255, 0, 30]
   }
 }

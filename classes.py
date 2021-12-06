@@ -31,6 +31,11 @@ class Primitive:
 
         return coordinates
 
+    @staticmethod
+    def set_at_beginning_of_visibility(object_):
+        Primitive.visibility.remove(object_)
+        Primitive.visibility.insert(0, object_)
+
     def _dying(self):
         log = local_logger.new_log(Log, f"{self} died")
         if debug_mode: print(log)
@@ -493,7 +498,7 @@ class Hunter(GameplayEntity):
 
     def __attack(self):
         for prey in Primitive.visibility:
-            if prey is not self and prey.__class__ in presence_in_inheritance(Hunter):
+            if prey is not self and prey.__class__ in get_family(Hunter):
                 for weapon_point in self.weapon.hitbox:
                     if weapon_point in prey.hitbox:
                         self.weapon.health["real"] -= 1
@@ -647,7 +652,7 @@ class Hunter(GameplayEntity):
 
     def _pick_up_items(self):
         for item in GameplayEntity.visibility:
-            if item.__class__ in presence_in_inheritance(Weapon):
+            if item.__class__ in get_family(Weapon):
                 if item.master is None:
                     for hitbox_point in item.hitbox:
                         if hitbox_point in self.hitbox:
@@ -783,7 +788,7 @@ class Opponent(Hunter):
 
     def _bot_work(self):
         for prey in Primitive.visibility:
-            if prey.__class__ in presence_in_inheritance(Player):
+            if prey.__class__ in get_family(Player):
                 if self.weapon is not None and self.action != "stun":
                     self._move(prey, direction=True)
                     self.waiting_attack["real"] -= 1
@@ -874,6 +879,7 @@ class Abstraction(Primitive):
     def __init__(self, x, y):
         super().__init__(x, y)
         Abstraction.visibility.append(self)
+        self.set_at_beginning_of_visibility(self)
 
     def __repr__(self):
         return "<Abstraction>"
@@ -961,6 +967,52 @@ class GameZone(Wall):
         pygame.draw.rect(surface, color["background"], (self.x, self.y, self.width, self.height))
 
 
+class Minimap(Hud):
+    def __init__(self, visibility: GameZone, size_factor: int, size_of_objects=settings["size of objects on minimap"], transparency=settings["minimap transparency"], x=0, y=0, movable=False, eternal=True, frames_to_death=FPS):
+        super().__init__(x=x, y=y, movable=movable, master=None, eternal=eternal, frames_to_death=frames_to_death)
+        self.size_factor = size_factor
+        self.size_of_objects = size_of_objects
+        self.transparency = transparency
+        self.visibility = visibility
+
+    def verification(self):
+        super().verification()
+        self._update_surface()
+
+    def _update_surface(self):
+        self.surface = pygame.Surface(self.size)
+        self.surface.set_alpha(255 * self.transparency)
+        self.surface.fill(color["minimap"])
+        for group in [group.visibility for group in self.visibility.to_work_with_groups]:
+            for object in group:
+                if object.__class__ in self.classes_attributes_for_drawing.keys():
+                    pygame.draw.circle(
+                        self.surface,
+                        self.classes_attributes_for_drawing[object.__class__]["color"],
+                        (
+                            -int((self.visibility.x - object.x)*self.size_factor),
+                            -int((self.visibility.y - object.y)*self.size_factor),
+                        ),
+                        self.size_of_objects * self.classes_attributes_for_drawing[object.__class__]["factor"]
+                    )
+
+    def draw(self, surface):
+        surface.blit(self.surface, (self.x, self.y))
+
+    @property
+    def size(self):
+        return (int(self.visibility.width * self.size_factor), int(self.visibility.height * self.size_factor))
+
+    @property
+    def classes_attributes_for_drawing(self):
+        return {
+            **{hunter: {"color": color["hunters on minimap"], "factor": 1} for hunter in get_family(Hunter)},
+            **{weapon: {"color": color["weapons on minimap"], "factor": 0.5} for weapon in get_family(Weapon)},
+            BlackOpponent: {"color": color["corpses on minimap"], "factor": 1},
+            Corpse: {"color": color["corpses on minimap"], "factor": 1}
+        }
+
+
 class Logger:
     file_start_time = datetime.now()
 
@@ -1044,20 +1096,30 @@ class App:
         pygame.mixer.music.load(self.__music_catalog)
 
     def __set_start_scene(self):
-        pygame.mixer.music.play(loops=-1)
-        pygame.mixer.music.set_volume(0.5)
-
-        for class_ in sorting_by_attribute(presence_in_inheritance(Primitive), "visibility"):
+        for class_ in sorting_by_attribute(get_family(Primitive), "visibility"):
             class_.visibility = []
 
         self.__time_to_exit["real"] = self.__time_to_exit["full"]
+
+        pygame.mixer.music.play(loops=-1)
+        pygame.mixer.music.set_volume(0.5)
 
         Player("Main Hero", tithe_win[0]*settings["factor of camera width"], app_win[1]//2 - 40, speed=7, vector=3)
 
         Opponent.total = 0
         Opponent.get_class_of_opponent_by_level()(x=app_win[0] - tithe_win[0]*settings["factor of camera width"] - 80, y=app_win[1]//2 - 40, vector=7)
 
-        GameZone(x=-plays_area[0]//2, y=-plays_area[1]//2, width=plays_area[0], height=plays_area[1])
+        gm_zone = GameZone(x=-plays_area[0]//2, y=-plays_area[1]//2, width=plays_area[0], height=plays_area[1])
+        
+        if settings["minimap"]:
+            Minimap(
+                visibility=gm_zone,
+                transparency=settings["minimap transparency"] if not settings["show minimap when pressing the key"] else 0,
+                size_factor=settings["minimap size factor"],
+                x=app_win[0] - plays_area[0]*settings["minimap size factor"] - 4,
+                y=5
+            )
+
         Camera(
             x=(app_win[0]-camera_area["width"])//2,
             y=(app_win[1]-camera_area["height"])//2,
@@ -1070,12 +1132,26 @@ class App:
             KillScore(x=20, y=40, text="", movable=False, eternal=True, master=Player.hero)
             InformationAboutSelectedWeapon(x=20, y=15, text="", movable=False, eternal=True, master=Player.hero)
 
-        if settings["plants"]: Plants.initialize_instances(amount=settings["number of plants"])
+        if settings["plants"]:
+            Plants.initialize_instances(amount=settings["number of plants"])
 
     def __button_maintenance(self):
         for action in pygame.event.get():
             if action.type == pygame.QUIT:
                 self.stop()
+
+            if settings["show minimap when pressing the key"]:
+                if action.type == pygame.KEYDOWN:
+                    if action.key in key["menu"]["ENABLE MINIMAP"]:
+                        for object_ in Hud.visibility:
+                            if object_.__class__ == Minimap:
+                                object_.transparency = settings["minimap transparency"]
+
+                if action.type == pygame.KEYUP:
+                    if action.key in key["menu"]["ENABLE MINIMAP"]:
+                        for object_ in Hud.visibility:
+                            if object_.__class__ == Minimap:
+                                object_.transparency = 0
 
             if Player.hero is not None:
                 if action.type == pygame.MOUSEBUTTONDOWN:
@@ -1125,7 +1201,7 @@ class App:
             else:
                 if action.type == pygame.KEYDOWN:
                     if action.key in key["menu"]["AGAIN"]:
-                        self.__set_start_scene()
+                        self.__set_start_scene()          
 
     def __computation_for_all_objects(self):
         for object in Primitive.visibility:
@@ -1147,7 +1223,7 @@ class App:
             for item in class_.visibility:
                 try:
                     item.draw(self.__window)
-                    if self.__debugging and item.__class__ in presence_in_inheritance(GameplayEntity):
+                    if self.__debugging and item.__class__ in get_family(GameplayEntity):
                         for hitbox in item.hitbox:
                             pygame.draw.rect(self.__window, color["debug mode"], (hitbox[0], hitbox[1], 1, 1))
 
